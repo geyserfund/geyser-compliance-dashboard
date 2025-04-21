@@ -8,11 +8,17 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Project, formatDate } from "@/lib/data";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ExternalLink } from "lucide-react";
 
 interface ProjectsTableProps {
   projects: Project[];
@@ -38,8 +44,12 @@ const ProjectsTable = ({ projects, onUpdateProject }: ProjectsTableProps) => {
     });
   };
 
-  const handleStatusChange = (project: Project, newStatus: Project["status"]) => {
-    const updatedProject = { ...project, status: newStatus };
+  const handleStatusChange = (project: Project, newStatus: "in-review" | "closed") => {
+    const updatedProject = { 
+      ...project, 
+      status: newStatus === "in-review" ? "pending" : "rejected",
+      rejectionReason: newStatus === "closed" ? "Project closed by reviewer" : ""
+    };
     
     if (onUpdateProject) {
       onUpdateProject(updatedProject);
@@ -47,7 +57,7 @@ const ProjectsTable = ({ projects, onUpdateProject }: ProjectsTableProps) => {
     
     toast({
       title: "Status updated",
-      description: `${project.title} has been marked as ${newStatus}.`,
+      description: `${project.title} has been marked as ${newStatus === "in-review" ? "In Review" : "Closed"}.`,
     });
   };
 
@@ -57,9 +67,9 @@ const ProjectsTable = ({ projects, onUpdateProject }: ProjectsTableProps) => {
       case "approved":
         return <Badge className="status-approved">Approved</Badge>;
       case "pending":
-        return <Badge className="status-pending">Pending</Badge>;
+        return <Badge className="status-pending">In Review</Badge>;
       case "rejected":
-        return <Badge className="status-rejected">Rejected</Badge>;
+        return <Badge className="status-rejected">Closed</Badge>;
       case "watchlist":
         return <Badge className="status-watchlist">Watchlist</Badge>;
       default:
@@ -72,18 +82,19 @@ const ProjectsTable = ({ projects, onUpdateProject }: ProjectsTableProps) => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[300px]">Project Title</TableHead>
-            <TableHead className="w-[300px]">Project URL</TableHead>
+            <TableHead className="w-[200px]">Project Title</TableHead>
             <TableHead className="w-[100px]">Status</TableHead>
             <TableHead className="w-[200px]">Mark As</TableHead>
+            <TableHead className="w-[200px]">Rejection Reason</TableHead>
             <TableHead className="w-[120px]">Created At</TableHead>
             <TableHead className="w-[100px]">Watchlist</TableHead>
+            <TableHead className="w-[50px]">URL</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {projects.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                 No projects found
               </TableCell>
             </TableRow>
@@ -91,50 +102,47 @@ const ProjectsTable = ({ projects, onUpdateProject }: ProjectsTableProps) => {
             projects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell className="font-medium">{project.title}</TableCell>
+                <TableCell>{getStatusBadge(project.status)}</TableCell>
+                <TableCell>
+                  <Select
+                    onValueChange={(value) => handleStatusChange(project, value as "in-review" | "closed")}
+                    defaultValue={project.status === "pending" ? "in-review" : "closed"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="in-review">In Review</SelectItem>
+                      <SelectItem value="closed">Close</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {project.rejectionReason || "-"}
+                </TableCell>
+                <TableCell>{formatDate(project.createdAt)}</TableCell>
+                <TableCell>
+                  {project.watchlisted ? (
+                    <EyeOff
+                      className="h-4 w-4 text-purple-600 cursor-pointer"
+                      onClick={() => handleToggleWatchlist(project)}
+                    />
+                  ) : (
+                    <Eye
+                      className="h-4 w-4 cursor-pointer"
+                      onClick={() => handleToggleWatchlist(project)}
+                    />
+                  )}
+                </TableCell>
                 <TableCell>
                   <a 
                     href={project.url} 
                     target="_blank" 
                     rel="noreferrer"
-                    className="text-blue-500 hover:underline truncate block"
+                    className="text-blue-500 hover:text-blue-700"
                   >
-                    {project.url}
+                    <ExternalLink className="h-4 w-4" />
                   </a>
-                </TableCell>
-                <TableCell>{getStatusBadge(project.status)}</TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className={project.status === "approved" ? "bg-green-100" : ""}
-                      onClick={() => handleStatusChange(project, "approved")}
-                    >
-                      Approve
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className={project.status === "rejected" ? "bg-red-100" : ""}
-                      onClick={() => handleStatusChange(project, "rejected")}
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                </TableCell>
-                <TableCell>{formatDate(project.createdAt)}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleToggleWatchlist(project)}
-                  >
-                    {project.watchlisted ? (
-                      <EyeOff className="h-4 w-4 text-purple-600" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
                 </TableCell>
               </TableRow>
             ))

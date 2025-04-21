@@ -1,4 +1,3 @@
-
 import { format } from "date-fns";
 
 export type Status = "approved" | "pending" | "rejected" | "watchlist";
@@ -10,6 +9,7 @@ export interface Project {
   status: Status;
   createdAt: Date;
   watchlisted: boolean;
+  rejectionReason?: string;
 }
 
 // Generate random dates between start and end
