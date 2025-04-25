@@ -1,42 +1,64 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Project, projects } from "@/lib/data";
+import {
+  ProjectFieldsFragment,
+  useProjectsGetQuery,
+  ProjectsOrderByField,
+  OrderByDirection,
+} from "@/types/generated/graphql";
 import ProjectsTable from "@/components/Dashboard/ProjectsTable";
 import { Search, Bell } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const LOCAL_STORAGE_WATCHLIST_KEY = "dashboardWatchlist";
+
+const getWatchlist = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem(LOCAL_STORAGE_WATCHLIST_KEY);
+  try {
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error("Failed to parse watchlist from localStorage", e);
+    return [];
+  }
+};
 
 const WatchlistPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [allProjects, setAllProjects] = useState<Project[]>(projects);
-  const [watchlistedProjects, setWatchlistedProjects] = useState<Project[]>([]);
+  const [watchlistIds, setWatchlistIds] = useState<string[]>([]);
 
-  // Update watchlisted projects when all projects change
   useEffect(() => {
-    const filtered = allProjects.filter(project => project.watchlisted);
-    setWatchlistedProjects(filtered);
-  }, [allProjects]);
+    setWatchlistIds(getWatchlist());
+  }, []);
 
-  // Update filtered projects when search query changes
+  const { data, loading, error } = useProjectsGetQuery({
+    variables: {
+      input: {
+        where: { ids: watchlistIds },
+        orderBy: [{ field: ProjectsOrderByField.LaunchedAt, direction: OrderByDirection.Desc }],
+      }
+    },
+    skip: watchlistIds.length === 0,
+    notifyOnNetworkStatusChange: true,
+  });
+
+  const fetchedProjects: ProjectFieldsFragment[] = data?.projectsGet?.projects || [];
+
+  const currentWatchlistIds = getWatchlist();
+  const projectsStillInWatchlist = fetchedProjects.filter(p => currentWatchlistIds.includes(p.id));
+
   const filteredProjects = searchQuery.trim() === ""
-    ? watchlistedProjects
-    : watchlistedProjects.filter(project => 
-        project.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        project.url.toLowerCase().includes(searchQuery.toLowerCase())
+    ? projectsStillInWatchlist
+    : projectsStillInWatchlist.filter(project =>
+        project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (project.name && project.name.toLowerCase().includes(searchQuery.toLowerCase()))
       );
-
-  // Handle project updates (watchlist status, etc)
-  const handleUpdateProject = (updatedProject: Project) => {
-    const updatedProjects = allProjects.map(p => 
-      p.id === updatedProject.id ? updatedProject : p
-    );
-    setAllProjects(updatedProjects);
-  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <Bell className="h-6 w-6 text-purple-600" />
+          <Bell className="h-6 w-6 text-yellow-500" />
           <h1 className="text-3xl font-bold tracking-tight">Watchlist</h1>
         </div>
         <div className="relative w-64">
@@ -51,11 +73,35 @@ const WatchlistPage = () => {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-4">Watchlisted Projects ({filteredProjects.length})</h2>
-        <ProjectsTable 
-          projects={filteredProjects} 
-          onUpdateProject={handleUpdateProject}
-        />
+        <h2 className="text-xl font-semibold mb-4">
+            Watchlisted Projects ({loading ? 'Loading...' : filteredProjects.length})
+        </h2>
+        {error && (
+          <p className="text-red-500 mb-4">Error loading watchlist projects: {error.message}</p>
+        )}
+        {loading && filteredProjects.length === 0 && watchlistIds.length > 0 && (
+           <div className="rounded-md border p-4 space-y-3">
+             {[...Array(3)].map((_, i) => (
+               <div key={i} className="flex space-x-4 animate-pulse">
+                 <Skeleton className="h-10 w-[250px]" />
+                 <Skeleton className="h-10 w-[120px]" />
+                 <Skeleton className="h-10 w-[200px]" />
+                 <Skeleton className="h-10 w-[150px]" />
+                 <Skeleton className="h-10 w-[150px]" />
+                 <Skeleton className="h-10 w-[50px]" />
+                 <Skeleton className="h-10 w-[80px]" />
+               </div>
+             ))}
+           </div>
+         )}
+         {(!loading || filteredProjects.length > 0) && (
+             <ProjectsTable
+               projects={filteredProjects}
+             />
+         )}
+         {!loading && watchlistIds.length === 0 && (
+             <p className="text-center text-muted-foreground py-8">Your watchlist is empty.</p>
+         )}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ const PROJECT_FIELDS_FRAGMENT = gql`
     name # Needed for URL generation if not directly available
     status
     launchedAt
+    rejectionReason # Added this field
     # Add other fields required by ProjectsTable (like images, rejectionReason, etc.)
     # rejectionReason # Example: Uncomment if needed
     # thumbnailImage # Example

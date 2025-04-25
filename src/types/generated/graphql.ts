@@ -6641,7 +6641,7 @@ export type ProjectCloseMutationVariables = Exact<{
 
 export type ProjectCloseMutation = { __typename?: 'Mutation', projectClose: { __typename?: 'Project', id: any, status?: ProjectStatus | null } };
 
-export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, launchedAt?: any | null, createdAt: string, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string } }> };
+export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, launchedAt?: any | null, rejectionReason?: string | null, createdAt: string, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string } }> };
 
 export type ProjectsGetQueryVariables = Exact<{
   input: ProjectsGetQueryInput;
@@ -6660,6 +6660,7 @@ export const ProjectFieldsFragmentDoc = gql`
   name
   status
   launchedAt
+  rejectionReason
   owners {
     user {
       id

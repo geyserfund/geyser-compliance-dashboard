@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Table, 
   TableBody, 
@@ -23,7 +23,26 @@ import {
   useProjectPutInReviewMutation 
 } from "@/types/generated/graphql";
 import ProjectStatusReasonModal from "./ProjectStatusReasonModal";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+const LOCAL_STORAGE_WATCHLIST_KEY = "dashboardWatchlist";
+
+// Function to get watchlist from localStorage
+const getWatchlist = (): string[] => {
+  const stored = localStorage.getItem(LOCAL_STORAGE_WATCHLIST_KEY);
+  try {
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error("Failed to parse watchlist from localStorage", e);
+    return [];
+  }
+};
+
+// Function to save watchlist to localStorage
+const saveWatchlist = (watchlist: string[]) => {
+  localStorage.setItem(LOCAL_STORAGE_WATCHLIST_KEY, JSON.stringify(watchlist));
+};
 
 const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return '-';
@@ -75,9 +94,28 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
     projectId: null, 
     intendedStatus: null 
   });
+  // Local state to track the current watchlist IDs
+  const [watchlist, setWatchlist] = useState<string[]>([]); 
+
+  // Load watchlist from localStorage on mount
+  useEffect(() => {
+    setWatchlist(getWatchlist());
+  }, []);
 
   const [putInReviewMutate, { loading: putInReviewLoading }] = useProjectPutInReviewMutation();
   const [closeMutate, { loading: closeLoading }] = useProjectCloseMutation();
+
+  const handleWatchlistToggle = (projectId: string) => {
+    const currentWatchlist = getWatchlist();
+    let updatedWatchlist;
+    if (currentWatchlist.includes(projectId)) {
+      updatedWatchlist = currentWatchlist.filter(id => id !== projectId);
+    } else {
+      updatedWatchlist = [...currentWatchlist, projectId];
+    }
+    saveWatchlist(updatedWatchlist);
+    setWatchlist(updatedWatchlist); // Update local state to re-render UI
+  };
 
   const handleStatusChangeRequest = (project: ProjectFieldsFragment, newStatusValue: string) => {
     const intendedStatus = newStatusValue === "in-review" 
@@ -166,50 +204,68 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
               <TableHead className="w-[250px]">Project Title</TableHead>
               <TableHead className="w-[120px]">Status</TableHead>
               <TableHead className="w-[200px]">Mark As</TableHead>
+              <TableHead className="w-[150px]">Rejection Reason</TableHead>
               <TableHead className="w-[150px]">Created On</TableHead>
               <TableHead className="w-[50px]">URL</TableHead>
+              <TableHead className="w-[80px]">Watchlist</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {projects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No projects found
                 </TableCell>
               </TableRow>
             ) : (
-              projects.map((project) => (
-                <TableRow key={project.id}>
-                  <TableCell className="font-medium">{project.title}</TableCell>
-                  <TableCell>{getStatusBadge(project.status)}</TableCell>
-                  <TableCell>
-                    <Select
-                      onValueChange={(value) => handleStatusChangeRequest(project, value)}
-                      value={getSelectValueFromStatus(project.status)}
-                      disabled={project.status === ProjectStatus.Closed}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Change status..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="in-review">In Review</SelectItem>
-                        <SelectItem value="closed">Close</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>{formatDate(project.createdAt)}</TableCell>
-                  <TableCell>
-                    <a 
-                      href={getProjectUrl(project.name)}
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="text-blue-500 hover:text-blue-700"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </TableCell>
-                </TableRow>
-              ))
+              projects.map((project) => {
+                const isWatchlisted = watchlist.includes(project.id);
+                return (
+                  <TableRow key={project.id}>
+                    <TableCell className="font-medium">{project.title}</TableCell>
+                    <TableCell>{getStatusBadge(project.status)}</TableCell>
+                    <TableCell>
+                      <Select
+                        onValueChange={(value) => handleStatusChangeRequest(project, value)}
+                        value={getSelectValueFromStatus(project.status)}
+                        disabled={project.status === ProjectStatus.Closed}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Change status..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="in-review">In Review</SelectItem>
+                          <SelectItem value="closed">Close</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {project.rejectionReason || '-'}
+                    </TableCell>
+                    <TableCell>{formatDate(project.createdAt)}</TableCell>
+                    <TableCell>
+                      <a 
+                        href={getProjectUrl(project.name)}
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="text-blue-500 hover:text-blue-700"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </TableCell>
+                    <TableCell>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleWatchlistToggle(project.id)}
+                        aria-label={isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
+                      >
+                        <Star className={`h-4 w-4 ${isWatchlisted ? 'fill-current text-yellow-500' : 'text-muted-foreground'}`} />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
