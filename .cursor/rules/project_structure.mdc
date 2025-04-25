@@ -1,0 +1,52 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Geyser Compliance Dashboard Project Structure
+
+This document outlines the structure of the Geyser Compliance Dashboard codebase.
+
+## Overview
+
+This is a React application built with Vite, TypeScript, and Tailwind CSS. It likely uses Shadcn/ui for components.
+
+## Key Directories and Files
+
+### Root Directory (`./`)
+
+*   `[package.json](mdc:package.json)`: Project dependencies and scripts.
+*   `[vite.config.ts](mdc:vite.config.ts)`: Vite build configuration.
+*   `[tailwind.config.ts](mdc:tailwind.config.ts)`: Tailwind CSS configuration.
+*   `[tsconfig.json](mdc:tsconfig.json)`: TypeScript configuration.
+*   `[index.html](mdc:index.html)`: Main HTML entry point.
+*   `[public/](mdc:public)`: Static assets.
+
+### Source Code (`src/`)
+
+*   `[src/main.tsx](mdc:src/main.tsx)`: The main application entry point. Initializes React and renders the `App` component.
+*   `[src/App.tsx](mdc:src/App.tsx)`: The root React component. Sets up routing, global layout, and potentially global context providers.
+*   `[src/index.css](mdc:src/index.css)`: Global CSS styles, likely including Tailwind base styles.
+*   `[src/components/](mdc:src/components)`: Contains reusable UI components.
+    *   `[src/components/ui/](mdc:src/components/ui)`: Likely contains base UI components, potentially from Shadcn/ui.
+    *   `[src/components/Dashboard/](mdc:src/components/Dashboard)`: Components specifically for the dashboard sections.
+*   `[src/pages/](mdc:src/pages)`: Contains components representing application pages/routes.
+    *   `[src/pages/Login.tsx](mdc:src/pages/Login.tsx)`: Login page.
+    *   `[src/pages/Dashboard/](mdc:src/pages/Dashboard)`: Contains pages related to the main dashboard.
+    *   `[src/pages/NotFound.tsx](mdc:src/pages/NotFound.tsx)`: 404 Not Found page.
+*   `[src/lib/](mdc:src/lib)`: Contains utility functions and potentially data fetching logic.
+    *   `[src/lib/utils.ts](mdc:src/lib/utils.ts)`: General utility functions (likely includes `cn` for Tailwind).
+    *   `[src/lib/data.ts](mdc:src/lib/data.ts)`: Seems to contain data structures or data fetching logic.
+*   `[src/hooks/](mdc:src/hooks)`: Contains custom React hooks for reusable logic.
+    *   `[src/hooks/use-toast.ts](mdc:src/hooks/use-toast.ts)`: Hook for displaying toasts/notifications.
+    *   `[src/hooks/use-mobile.tsx](mdc:src/hooks/use-mobile.tsx)`: Hook for detecting mobile devices.
+*   `[src/contexts/](mdc:src/contexts)`: Contains React Context definitions and providers.
+    *   `[src/contexts/AuthContext.tsx](mdc:src/contexts/AuthContext.tsx)`: Manages authentication state.
+
+## Configuration
+
+*   **Build:** Handled by Vite (`[vite.config.ts](mdc:vite.config.ts)`).
+*   **Styling:** Uses Tailwind CSS (`[tailwind.config.ts](mdc:tailwind.config.ts)`) and PostCSS (`[postcss.config.js](mdc:postcss.config.js)`). Global styles are in `[src/index.css](mdc:src/index.css)`.
+*   **TypeScript:** Configured via `[tsconfig.json](mdc:tsconfig.json)`, `[tsconfig.app.json](mdc:tsconfig.app.json)`, and `[tsconfig.node.json](mdc:tsconfig.node.json)`.
+*   **Linting:** Configured in `[eslint.config.js](mdc:eslint.config.js)`.
+*   **Components:** Base UI components likely managed via `[components.json](mdc:components.json)` (standard for Shadcn/ui).

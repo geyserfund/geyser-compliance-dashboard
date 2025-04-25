@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  compliance-dashboard:
+    container_name: geyser-compliance-dashboard
+    build:
+      context: .
+    platform: linux/amd64 
+    command:  sh -c "RUN_DOCKER=true && npm install && npm run dev"
+    working_dir: /usr/app
+    image:  geyser-compliance-dashboard
+    env_file: .env
+    ports:
+      - "3003:3003"
+    networks:
+      - shared-net
+    restart: unless-stopped
+    volumes:
+      - .:/usr/app
+    dns:
+      - 1.1.1.1
+
+networks:
+  shared-net:
+    external: true
+
+# Remove the named volume definition
+# volumes:
+#  node_modules:

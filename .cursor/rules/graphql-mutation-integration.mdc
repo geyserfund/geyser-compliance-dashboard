@@ -1,0 +1,48 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Connecting UI to GraphQL Mutations
+
+This rule outlines the standard process followed in this project to connect a UI element (like a dropdown or button) to a GraphQL mutation using Apollo Client and code generation.
+
+## Steps
+
+1.  **Define the GraphQL Mutation:**
+    *   Add the mutation definition to a relevant file within `src/graphql/mutations/`. For project-related mutations, this was done in [`src/graphql/mutations/project.ts`](mdc:src/graphql/mutations/project.ts).
+    *   Use the `gql` template tag from `@apollo/client`.
+
+2.  **Generate Hooks:**
+    *   Run the GraphQL code generation script (configured in [`codegen.ts`](mdc:codegen.ts)).
+    *   This generates TypeScript types and React hooks (e.g., `useProjectPutInReviewMutation`) based on the schema and mutation definitions. The output is typically placed in [`src/types/generated/graphql.ts`](mdc:src/types/generated/graphql.ts).
+
+3.  **Implement in UI Component:**
+    *   Identify the component where the interaction happens (e.g., [`src/components/Dashboard/ProjectsTable.tsx`](mdc:src/components/Dashboard/ProjectsTable.tsx)).
+    *   **Import Hooks:** Import the necessary generated mutation hook (e.g., `useProjectPutInReviewMutation`) from the generated types file.
+    *   **Instantiate Hook:** Call the hook at the top level of the component to get the mutate function and loading/error states.
+    *   **Trigger Logic:** Create a handler function (e.g., `handleStatusChangeRequest`) that is called by the UI element (e.g., `onValueChange` of a `Select`).
+    *   **(Optional) Input Modal:** If additional input is required (like a reason), the trigger handler should open a modal (e.g., [`src/components/Dashboard/ProjectStatusReasonModal.tsx`](mdc:src/components/Dashboard/ProjectStatusReasonModal.tsx)) to collect this input.
+    *   **Confirmation & Mutation Call:** Create a confirmation handler (e.g., `handleModalConfirm`) that:
+        *   Takes the necessary data (e.g., `projectId`, `reason`) as arguments.
+        *   Calls the `mutate` function obtained from the hook, passing the variables in the required structure (e.g., `{ variables: { input: { projectId, reason } } }`).
+    *   **Handle Response & UI Update:**
+        *   Use `async/await` with the `mutate` function call.
+        *   In the `try` block after a successful mutation:
+            *   Extract the relevant data from the mutation response (e.g., `result.data.projectPutInReview`).
+            *   Update the local component state or call a callback prop (e.g., `onUpdateProject`) with the updated data to ensure the UI reflects the change immediately.
+            *   Show a success toast/message.
+            *   Close the modal if one was used.
+        *   In the `catch` block:
+            *   Log the error.
+            *   Show an error toast/message.
+        *   Use the `loading` state returned by the hook to disable buttons or show loading indicators.
+
+## Key Files Referenced
+
+*   Mutation Definition: [`src/graphql/mutations/project.ts`](mdc:src/graphql/mutations/project.ts)
+*   Codegen Config: [`codegen.ts`](mdc:codegen.ts)
+*   Generated Types/Hooks: [`src/types/generated/graphql.ts`](mdc:src/types/generated/graphql.ts)
+*   Apollo Setup: [`src/App.tsx`](mdc:src/App.tsx)
+*   UI Component Example: [`src/components/Dashboard/ProjectsTable.tsx`](mdc:src/components/Dashboard/ProjectsTable.tsx)
+*   Modal Example: [`src/components/Dashboard/ProjectStatusReasonModal.tsx`](mdc:src/components/Dashboard/ProjectStatusReasonModal.tsx)
