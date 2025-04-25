@@ -1,50 +1,45 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Project, projects } from "@/lib/data";
+import {
+  useProjectsGetQuery,
+  ProjectFieldsFragment,
+  ProjectsOrderByField,
+  OrderByDirection
+} from "@/types/generated/graphql";
 import ProjectsTable from "@/components/Dashboard/ProjectsTable";
 import { Search } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Project[]>([]);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [allProjects, setAllProjects] = useState<Project[]>(projects);
+  const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
+
+  const { data, loading, error } = useProjectsGetQuery({
+    variables: {
+      input: {
+        where: { search: submittedQuery || "" },
+        orderBy: [{ field: ProjectsOrderByField.LaunchedAt, direction: OrderByDirection.Desc }],
+      }
+    },
+    skip: submittedQuery === null,
+    notifyOnNetworkStatusChange: true,
+  });
+
+  const searchResults: ProjectFieldsFragment[] = data?.projectsGet?.projects || [];
 
   const handleSearch = () => {
-    const lowercaseQuery = searchQuery.toLowerCase().trim();
-    if (lowercaseQuery === "") {
-      setSearchResults([]);
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery) {
+      setSubmittedQuery(trimmedQuery);
     } else {
-      const filtered = allProjects.filter(project => 
-        project.title.toLowerCase().includes(lowercaseQuery) || 
-        project.url.toLowerCase().includes(lowercaseQuery)
-      );
-      setSearchResults(filtered);
+      setSubmittedQuery(null);
     }
-    setHasSearched(true);
   };
 
-  // Handle key press (Enter)
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearch();
-    }
-  };
-
-  // Handle project updates (watchlist status, etc)
-  const handleUpdateProject = (updatedProject: Project) => {
-    const updatedProjects = allProjects.map(p => 
-      p.id === updatedProject.id ? updatedProject : p
-    );
-    setAllProjects(updatedProjects);
-    
-    // Update search results if the project is in the results
-    if (searchResults.some(p => p.id === updatedProject.id)) {
-      setSearchResults(prevResults => 
-        prevResults.map(p => p.id === updatedProject.id ? updatedProject : p)
-      );
     }
   };
 
@@ -58,25 +53,50 @@ const SearchPage = () => {
         <div className="relative flex-1">
           <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by project title or URL..."
+            placeholder="Search by project title, name, or description..."
             className="pl-8 py-6"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyUp={handleKeyPress}
           />
         </div>
-        <Button onClick={handleSearch}>Search</Button>
+        <Button onClick={handleSearch} disabled={loading}>
+          {loading ? "Searching..." : "Search"}
+        </Button>
       </div>
 
-      {hasSearched && (
+      {submittedQuery !== null && (
         <div>
           <h2 className="text-xl font-semibold mb-4">
-            Search Results ({searchResults.length})
+            Search Results ({loading ? 'Loading...' : searchResults.length}) for "{submittedQuery}"
           </h2>
-          <ProjectsTable 
-            projects={searchResults} 
-            onUpdateProject={handleUpdateProject}
-          />
+          {error && (
+            <p className="text-red-500 mb-4">Error loading search results: {error.message}</p>
+          )}
+          {loading && (
+            <div className="rounded-md border p-4 space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex space-x-4 animate-pulse">
+                  <Skeleton className="h-10 w-[250px]" />
+                  <Skeleton className="h-10 w-[120px]" />
+                  <Skeleton className="h-10 w-[200px]" />
+                  <Skeleton className="h-10 w-[150px]" />
+                  <Skeleton className="h-10 w-[150px]" />
+                  <Skeleton className="h-10 w-[50px]" />
+                  <Skeleton className="h-10 w-[80px]" />
+                </div>
+              ))}
+            </div>
+          )}
+          {!loading && (
+            searchResults.length > 0 ? (
+              <ProjectsTable
+                projects={searchResults}
+              />
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No projects found matching your search.</p>
+            )
+          )}
         </div>
       )}
     </div>

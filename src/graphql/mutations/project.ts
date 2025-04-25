@@ -5,6 +5,7 @@ export const PROJECT_PUT_IN_REVIEW = gql`
     projectPutInReview(input: $input) {
       id
       status
+      rejectionReason
     }
   }
 `;
@@ -14,6 +15,7 @@ export const PROJECT_CLOSE = gql`
     projectClose(input: $input) {
       id
       status
+      rejectionReason
     }
   }
 `; 

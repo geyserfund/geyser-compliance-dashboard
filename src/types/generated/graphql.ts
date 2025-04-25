@@ -6632,14 +6632,14 @@ export type ProjectPutInReviewMutationVariables = Exact<{
 }>;
 
 
-export type ProjectPutInReviewMutation = { __typename?: 'Mutation', projectPutInReview: { __typename?: 'Project', id: any, status?: ProjectStatus | null } };
+export type ProjectPutInReviewMutation = { __typename?: 'Mutation', projectPutInReview: { __typename?: 'Project', id: any, status?: ProjectStatus | null, rejectionReason?: string | null } };
 
 export type ProjectCloseMutationVariables = Exact<{
   input: ProjectCloseMutationInput;
 }>;
 
 
-export type ProjectCloseMutation = { __typename?: 'Mutation', projectClose: { __typename?: 'Project', id: any, status?: ProjectStatus | null } };
+export type ProjectCloseMutation = { __typename?: 'Mutation', projectClose: { __typename?: 'Project', id: any, status?: ProjectStatus | null, rejectionReason?: string | null } };
 
 export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, launchedAt?: any | null, rejectionReason?: string | null, createdAt: string, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string } }> };
 
@@ -6718,6 +6718,7 @@ export const ProjectPutInReviewDocument = gql`
   projectPutInReview(input: $input) {
     id
     status
+    rejectionReason
   }
 }
     `;
@@ -6752,6 +6753,7 @@ export const ProjectCloseDocument = gql`
   projectClose(input: $input) {
     id
     status
+    rejectionReason
   }
 }
     `;

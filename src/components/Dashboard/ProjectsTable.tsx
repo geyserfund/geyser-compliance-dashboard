@@ -228,14 +228,13 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
                       <Select
                         onValueChange={(value) => handleStatusChangeRequest(project, value)}
                         value={getSelectValueFromStatus(project.status)}
-                        disabled={project.status === ProjectStatus.Closed}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Change status..." />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="in-review">In Review</SelectItem>
-                          <SelectItem value="closed">Close</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
