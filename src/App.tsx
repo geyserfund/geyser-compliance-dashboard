@@ -2,13 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { 
-  ApolloClient, 
-  InMemoryCache, 
-  ApolloProvider 
-} from "@apollo/client";
+import { ApolloProvider } from "@apollo/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+
+// Import the configured Apollo Client
+import { apolloClient } from "./apolloClient"; // Make sure path is correct
 
 // Pages
 import Login from "./pages/Login";
@@ -20,37 +19,23 @@ import Search from "./pages/Dashboard/Search";
 
 const queryClient = new QueryClient();
 
-// Configure Apollo Client
-const graphqlUri = import.meta.env.VITE_GRAPHQL_URI || 'https://api.dev.geyser.fund/graphql';
-
-const apolloClient = new ApolloClient({
-  uri: graphqlUri,
-  cache: new InMemoryCache(),
-  // TODO: Add authentication headers if needed
-  // headers: {
-  //   Authorization: `Bearer ${token}`
-  // }
-});
-
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   
-  // if (loading) {
-  //   return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  // }
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
   
-  // if (!isAuthenticated) {
-  //   return <Navigate to="/login" replace />;
-  // }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
   
   return <>{children}</>;
 };
 
 const AppRoutes = () => {
-  // const { isAuthenticated } 
-  // = useAuth();
-  const isAuthenticated = true;
+  const { isAuthenticated } = useAuth();
   return (
     <Routes>
       <Route path="/login" element={
@@ -77,13 +62,13 @@ const App = () => (
   <ApolloProvider client={apolloClient}>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <BrowserRouter>
+        <BrowserRouter>
+          <AuthProvider>
             <AppRoutes />
             <Toaster />
             <Sonner />
-          </BrowserRouter>
-        </AuthProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   </ApolloProvider>

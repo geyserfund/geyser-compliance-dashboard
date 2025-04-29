@@ -26,7 +26,7 @@ const DashboardLayout = () => {
       >
         <div className="p-4 flex items-center justify-between">
           {!isSidebarCollapsed && (
-            <span className="font-bold text-lg">Nostr Watchdog</span>
+            <span className="font-bold text-lg">Geyser Watchdog</span>
           )}
           <Button 
             variant="ghost" 

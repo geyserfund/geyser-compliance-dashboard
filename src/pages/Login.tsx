@@ -8,23 +8,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPubkey, signEvent } from "@/utils/nostr";
 
-const refreshAuthToken = async (authServiceEndpoint: string) => {
-  try {
-    const response = await fetch(`${authServiceEndpoint}/auth-token`, {
-      credentials: 'include',
-      redirect: 'follow',
-    })
-
-    if (response.status >= 200 && response.status < 400) {
-      console.log("Auth token refreshed");
-    } else {
-      console.error("Login error", response.status, response.statusText);
-    }
-  } catch (err) {
-    console.error("Login error:", err);
-  }
-}
-
 const Login = () => {
 
   const [isLoading, setIsLoading] = useState(false);
@@ -32,11 +15,8 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const authServiceEndpoint = `${import.meta.env.VITE_APP_API_ENDPOINT}/auth`;
-
-  useEffect(() => {
-    refreshAuthToken(authServiceEndpoint);
-  }, []);
+  const apiEndpoint = import.meta.env.VITE_APP_API_ENDPOINT;
+  const authServiceEndpoint = `${apiEndpoint}/auth`;
 
   const handleConnect = async () => {
     setIsLoading(true);
@@ -50,9 +30,11 @@ const Login = () => {
 
     try {
       const pubkey = await getPubkey();
-
+    
+      console.log("Fetching Nostr challenge with initial auth token...");
       const authChallengeResponse = await fetch(`${authServiceEndpoint}/nostr`, {
-        method: 'GET',
+        method: 'POST',
+        credentials: 'include',
         headers: {
           'Accept': 'application/json',
         },
@@ -63,38 +45,40 @@ const Login = () => {
          throw new Error(`Failed to fetch auth challenge: ${authChallengeResponse.status} ${authChallengeResponse.statusText} ${errorData.message || ''}`);
       }
 
-      const { event: eventTemplate } = await authChallengeResponse.json();
+      const { event: eventTemplate, authToken: nostrAuthToken } = await authChallengeResponse.json();
 
       if (!eventTemplate || typeof eventTemplate !== 'object') {
            throw new Error('Invalid authentication challenge received from server.');
       }
+      console.log("Nostr challenge received.");
+      // --- End Step 3 ---
 
-      // 3. Prepare and sign the event
-      // The UnsignedEvent type does not include 'id'. It's added after signing.
+      // --- Step 4: Sign Event ---
       const unsignedEvent: UnsignedEvent = {
         ...eventTemplate,
         pubkey: pubkey,
-        created_at: Math.floor(Date.now() / 1000), // Ensure created_at is recent
-        // No 'id' here
+        created_at: Math.floor(Date.now() / 1000),
       };
-      // We still calculate the hash here if needed elsewhere, but don't add it to the object passed to signEvent
       const _eventId = getEventHash(unsignedEvent);
-
-      // Pass the event without the 'id' to the NIP-07 signEvent function
       const signedEvent = await signEvent(unsignedEvent);
+      console.log("Event signed.");
+      // --- End Step 4 ---
 
-      // The signedEvent returned by the extension *should* now include the id and sig
-      // 4. Serialize and encode the signed event for the token
+      // --- Step 5: Verify Signed Event (using initial authToken, standard fetch) ---
+      console.log("Verifying signed event with initial auth token...");
       const serialisedEvent = JSON.stringify(signedEvent);
-      const nostrAuthToken = encodeURIComponent(Buffer.from(serialisedEvent).toString('base64')).replace(
+      const nostrAuthTokenParam = encodeURIComponent(Buffer.from(serialisedEvent).toString('base64')).replace(
         /[!'()*]/g,
         (c) => '%' + c.charCodeAt(0).toString(16),
       );
 
-      const verifyResponse = await fetch(`${authServiceEndpoint}/nostr?token=${nostrAuthToken}`, {
-        method: 'POST',
+      // Use standard fetch, but ensure credentials are included if backend sets cookies
+      const verifyResponse = await fetch(`${authServiceEndpoint}/nostr?token=${nostrAuthTokenParam}`, {
+        method: 'POST', 
+        credentials: 'include',
         headers: {
           'Accept': 'application/json',
+          'Auth-Token': `${nostrAuthToken}`
         },
       });
 
@@ -102,9 +86,10 @@ const Login = () => {
           const errorData = await verifyResponse.json().catch(() => ({}));
           throw new Error(`Authentication failed: ${verifyResponse.status} ${verifyResponse.statusText}. ${errorData.message || 'Please try again.'}`);
       }
+      console.log("Verification successful.");
 
-      login(pubkey);
-      navigate("/dashboard");
+      login(pubkey); // Update application auth state (e.g., set isAuthenticated)
+      navigate("/dashboard"); // Navigate to protected area
 
     } catch (err: unknown) {
       console.error("Login error:", err);
