@@ -35,7 +35,7 @@ const WatchlistPage = () => {
     variables: {
       input: {
         where: { ids: watchlistIds },
-        orderBy: [{ field: ProjectsOrderByField.LaunchedAt, direction: OrderByDirection.Desc }],
+        orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
       }
     },
     skip: watchlistIds.length === 0,
@@ -97,6 +97,7 @@ const WatchlistPage = () => {
          {(!loading || filteredProjects.length > 0) && (
              <ProjectsTable
                projects={filteredProjects}
+               disableReviewedFilter={true}
              />
          )}
          {!loading && watchlistIds.length === 0 && (

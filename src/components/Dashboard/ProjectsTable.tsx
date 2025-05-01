@@ -23,10 +23,11 @@ import {
   useProjectPutInReviewMutation 
 } from "@/types/generated/graphql";
 import ProjectStatusReasonModal from "./ProjectStatusReasonModal";
-import { ExternalLink, Star } from "lucide-react";
+import { ExternalLink, Star, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const LOCAL_STORAGE_WATCHLIST_KEY = "dashboardWatchlist";
+const LOCAL_STORAGE_REVIEWED_KEY = "dashboardReviewed";
 
 // Function to get watchlist from localStorage
 const getWatchlist = (): string[] => {
@@ -42,6 +43,22 @@ const getWatchlist = (): string[] => {
 // Function to save watchlist to localStorage
 const saveWatchlist = (watchlist: string[]) => {
   localStorage.setItem(LOCAL_STORAGE_WATCHLIST_KEY, JSON.stringify(watchlist));
+};
+
+// Function to get reviewed projects from localStorage
+const getReviewedProjects = (): string[] => {
+  const stored = localStorage.getItem(LOCAL_STORAGE_REVIEWED_KEY);
+  try {
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error("Failed to parse reviewed projects from localStorage", e);
+    return [];
+  }
+};
+
+// Function to save reviewed projects to localStorage
+const saveReviewedProjects = (reviewedIds: string[]) => {
+  localStorage.setItem(LOCAL_STORAGE_REVIEWED_KEY, JSON.stringify(reviewedIds));
 };
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -79,6 +96,8 @@ const formatDate = (dateString: string | null | undefined): string => {
 
 interface ProjectsTableProps {
   projects: ProjectFieldsFragment[];
+  onRenderedCountChange?: (count: number) => void;
+  disableReviewedFilter?: boolean;
 }
 
 interface ModalState {
@@ -87,7 +106,11 @@ interface ModalState {
   intendedStatus: ProjectStatus.InReview | ProjectStatus.Closed | null;
 }
 
-const ProjectsTable = ({ projects }: ProjectsTableProps) => {
+const ProjectsTable = ({ 
+  projects, 
+  onRenderedCountChange, 
+  disableReviewedFilter = false
+}: ProjectsTableProps) => {
   const { toast } = useToast();
   const [modalState, setModalState] = useState<ModalState>({ 
     isOpen: false, 
@@ -96,10 +119,13 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
   });
   // Local state to track the current watchlist IDs
   const [watchlist, setWatchlist] = useState<string[]>([]); 
+  // New state for reviewed projects
+  const [reviewedProjects, setReviewedProjects] = useState<string[]>([]); 
 
-  // Load watchlist from localStorage on mount
+  // Load watchlist and reviewed projects from localStorage on mount
   useEffect(() => {
     setWatchlist(getWatchlist());
+    setReviewedProjects(getReviewedProjects());
   }, []);
 
   const [putInReviewMutate, { loading: putInReviewLoading }] = useProjectPutInReviewMutation();
@@ -114,7 +140,26 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
       updatedWatchlist = [...currentWatchlist, projectId];
     }
     saveWatchlist(updatedWatchlist);
-    setWatchlist(updatedWatchlist); // Update local state to re-render UI
+    setWatchlist(updatedWatchlist);
+  };
+
+  const handleMarkAsReviewed = (projectId: string) => {
+    const currentReviewed = getReviewedProjects();
+    if (!currentReviewed.includes(projectId)) {
+      const updatedReviewed = [...currentReviewed, projectId];
+      saveReviewedProjects(updatedReviewed);
+      setReviewedProjects(updatedReviewed);
+    }
+  };
+
+  // New handler for un-marking a project as reviewed
+  const handleUnreviewProject = (projectId: string) => {
+    const currentReviewed = getReviewedProjects();
+    if (currentReviewed.includes(projectId)) {
+      const updatedReviewed = currentReviewed.filter(id => id !== projectId);
+      saveReviewedProjects(updatedReviewed);
+      setReviewedProjects(updatedReviewed); // Update local state
+    }
   };
 
   const handleStatusChangeRequest = (project: ProjectFieldsFragment, newStatusValue: string) => {
@@ -195,6 +240,18 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
     return projectName ? `https://geyser.fund/project/${projectName}` : '#'; 
   };
 
+  // Filter projects *before* rendering, conditionally skipping the reviewed filter
+  const visibleProjects = disableReviewedFilter 
+    ? projects // If prop is true, show all passed projects
+    : projects.filter(project => !reviewedProjects.includes(project.id)); // Otherwise, filter reviewed
+
+  // Effect to report the count of visible projects
+  useEffect(() => {
+    if (onRenderedCountChange) {
+      onRenderedCountChange(visibleProjects.length);
+    }
+  }, [visibleProjects.length, onRenderedCountChange]);
+
   return (
     <>
       <div className="rounded-md border">
@@ -208,18 +265,21 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
               <TableHead className="w-[150px]">Created On</TableHead>
               <TableHead className="w-[50px]">URL</TableHead>
               <TableHead className="w-[80px]">Watchlist</TableHead>
+              <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {projects.length === 0 ? (
+            {visibleProjects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  No projects found
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  {projects.length > 0 ? "All recent projects marked as reviewed or none match filter" : "No projects found"}
                 </TableCell>
               </TableRow>
             ) : (
-              projects.map((project) => {
+              visibleProjects.map((project) => {
                 const isWatchlisted = watchlist.includes(project.id);
+                const isReviewed = reviewedProjects.includes(project.id);
+
                 return (
                   <TableRow key={project.id}>
                     <TableCell className="font-medium">{project.title}</TableCell>
@@ -261,6 +321,32 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
                       >
                         <Star className={`h-4 w-4 ${isWatchlisted ? 'fill-current text-yellow-500' : 'text-muted-foreground'}`} />
                       </Button>
+                    </TableCell>
+                    <TableCell>
+                      {isReviewed ? (
+                        <div className="group relative">
+                          <Button 
+                            variant="link" 
+                            size="sm" 
+                            onClick={() => handleUnreviewProject(project.id)}
+                            className="text-muted-foreground hover:text-foreground p-0 h-auto no-underline hover:no-underline"
+                            aria-label="Mark as not reviewed"
+                          >
+                            <span className="group-hover:hidden">Reviewed</span>
+                            <span className="hidden group-hover:inline text-red-600">Unreview</span>
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleMarkAsReviewed(project.id)}
+                          aria-label="Mark as reviewed"
+                          className="flex items-center gap-1"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

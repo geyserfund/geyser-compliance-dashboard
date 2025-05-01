@@ -19,7 +19,7 @@ const SearchPage = () => {
     variables: {
       input: {
         where: { search: submittedQuery || "" },
-        orderBy: [{ field: ProjectsOrderByField.LaunchedAt, direction: OrderByDirection.Desc }],
+        orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
       }
     },
     skip: submittedQuery === null,

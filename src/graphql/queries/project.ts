@@ -8,7 +8,6 @@ const PROJECT_FIELDS_FRAGMENT = gql`
     title
     name # Needed for URL generation if not directly available
     status
-    launchedAt
     rejectionReason # Added this field
     # Add other fields required by ProjectsTable (like images, rejectionReason, etc.)
     # rejectionReason # Example: Uncomment if needed
@@ -19,7 +18,7 @@ const PROJECT_FIELDS_FRAGMENT = gql`
         username
       }
     }
-    createdAt # Although we sort by launchedAt, let's fetch createdAt for display
+    createdAt
     # balance # Example if needed
     # location { country { code name } region } # Example
   }

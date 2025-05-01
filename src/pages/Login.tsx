@@ -106,7 +106,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="absolute top-8 left-0 w-full text-center">
-        <h1 className="text-2xl font-bold text-primary">Nostr Compliance Dashboard</h1>
+        <h1 className="text-2xl font-bold text-primary">Geyser Compliance Dashboard</h1>
       </div>
       
       <Card className="w-full max-w-md">

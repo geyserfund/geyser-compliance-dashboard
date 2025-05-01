@@ -2976,6 +2976,7 @@ export enum ProjectsMostFundedByTagRange {
 
 export enum ProjectsOrderByField {
   Balance = 'balance',
+  CreatedAt = 'createdAt',
   LaunchedAt = 'launchedAt'
 }
 
@@ -6641,7 +6642,7 @@ export type ProjectCloseMutationVariables = Exact<{
 
 export type ProjectCloseMutation = { __typename?: 'Mutation', projectClose: { __typename?: 'Project', id: any, status?: ProjectStatus | null, rejectionReason?: string | null } };
 
-export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, launchedAt?: any | null, rejectionReason?: string | null, createdAt: string, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string } }> };
+export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, rejectionReason?: string | null, createdAt: string, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string } }> };
 
 export type ProjectsGetQueryVariables = Exact<{
   input: ProjectsGetQueryInput;
@@ -6659,7 +6660,6 @@ export const ProjectFieldsFragmentDoc = gql`
   title
   name
   status
-  launchedAt
   rejectionReason
   owners {
     user {

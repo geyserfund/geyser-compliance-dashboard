@@ -1,9 +1,7 @@
-
 import { useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { 
   Table, 
   Search, 
@@ -51,7 +49,21 @@ const DashboardLayout = () => {
             }
           >
             <Table size={20} />
-            {!isSidebarCollapsed && <span className="ml-3">All Projects</span>}
+            {!isSidebarCollapsed && <span className="ml-3">Unreviewed Projects</span>}
+          </NavLink>
+          
+          <NavLink 
+            to="/dashboard/recent"
+            className={({ isActive }) => 
+              `flex items-center px-4 py-3 transition-colors ${
+                isActive 
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                  : "hover:bg-sidebar-accent/50"
+              }`
+            }
+          >
+            <List size={20} />
+            {!isSidebarCollapsed && <span className="ml-3">Recent Projects</span>}
           </NavLink>
           
           <NavLink 

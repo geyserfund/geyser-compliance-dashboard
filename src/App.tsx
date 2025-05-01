@@ -16,6 +16,7 @@ import DashboardLayout from "./components/Dashboard/Layout";
 import DashboardIndex from "./pages/Dashboard/Index";
 import Watchlist from "./pages/Dashboard/Watchlist";
 import Search from "./pages/Dashboard/Search";
+import RecentProjectsPage from "./pages/Dashboard/Recent";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const AppRoutes = () => {
         </ProtectedRoute>
       }>
         <Route index element={<DashboardIndex />} />
+        <Route path="recent" element={<RecentProjectsPage />} />
         <Route path="watchlist" element={<Watchlist />} />
         <Route path="search" element={<Search />} />
       </Route>
