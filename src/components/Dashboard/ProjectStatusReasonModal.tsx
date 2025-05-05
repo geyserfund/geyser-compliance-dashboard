@@ -31,6 +31,8 @@ const REASONS = [
   'Selling a security, promise of returns (crypto token, NFT, etc.)',
   'Unsupported region (conflict zone, sanctioned country, etc.)',
   'Scam (fake content, fake medical expenses, etc.)',
+  'Spam (irrelevant content with purposes of advertising, phishing, or debasing quality)',
+  'Incomplete project (no clear story or aim)',
 ];
 
 const ProjectStatusReasonModal = ({

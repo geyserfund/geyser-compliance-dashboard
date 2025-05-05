@@ -2948,6 +2948,7 @@ export type ProjectsGetWhereInput = {
   region?: InputMaybe<Scalars['String']['input']>;
   search?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<ProjectStatus>;
+  statuses?: InputMaybe<Array<ProjectStatus>>;
   subCategory?: InputMaybe<ProjectSubCategory>;
   tagIds?: InputMaybe<Array<Scalars['Int']['input']>>;
   type?: InputMaybe<ProjectType>;

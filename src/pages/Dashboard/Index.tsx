@@ -4,7 +4,8 @@ import {
   useProjectsGetQuery, 
   ProjectFieldsFragment,
   OrderByDirection, 
-  ProjectsOrderByField
+  ProjectsOrderByField,
+  ProjectStatus
   // No PageInfo types needed
 } from "@/types/generated/graphql";
 import ProjectsTable from "@/components/Dashboard/ProjectsTable";
@@ -36,7 +37,7 @@ const DashboardPage = () => {
   const { data, loading, error, fetchMore } = useProjectsGetQuery({
     variables: {
       input: {
-        where: {},
+        where: { statuses: [ProjectStatus.Active, ProjectStatus.Inactive, ProjectStatus.PreLaunch, ProjectStatus.Closed]},
         orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
         pagination: { take: ITEMS_PER_PAGE }
       }
