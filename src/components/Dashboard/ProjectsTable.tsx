@@ -20,7 +20,8 @@ import {
   ProjectStatus, 
   ProjectFieldsFragment,
   useProjectCloseMutation, 
-  useProjectPutInReviewMutation 
+  useProjectPutInReviewMutation,
+  useProjectStatusUpdateMutation
 } from "@/types/generated/graphql";
 import ProjectStatusReasonModal from "./ProjectStatusReasonModal";
 import { ExternalLink, Star, Check, Copy } from "lucide-react";
@@ -103,7 +104,7 @@ interface ProjectsTableProps {
 interface ModalState {
   isOpen: boolean;
   projectId: string | null;
-  intendedStatus: ProjectStatus.InReview | ProjectStatus.Closed | null;
+  intendedStatus: ProjectStatus.InReview | ProjectStatus.Closed | ProjectStatus.Draft | ProjectStatus.Active | ProjectStatus.PreLaunch | null;
 }
 
 const ProjectsTable = ({ 
@@ -130,6 +131,7 @@ const ProjectsTable = ({
 
   const [putInReviewMutate, { loading: putInReviewLoading }] = useProjectPutInReviewMutation();
   const [closeMutate, { loading: closeLoading }] = useProjectCloseMutation();
+  const [statusUpdateMutate, { loading: statusUpdateLoading }] = useProjectStatusUpdateMutation();
 
   const handleWatchlistToggle = (projectId: string) => {
     const currentWatchlist = getWatchlist();
@@ -189,9 +191,29 @@ const ProjectsTable = ({
   };
 
   const handleStatusChangeRequest = (project: ProjectFieldsFragment, newStatusValue: string) => {
-    const intendedStatus = newStatusValue === "in-review" 
-      ? ProjectStatus.InReview 
-      : ProjectStatus.Closed;
+    let intendedStatus: ProjectStatus.InReview | ProjectStatus.Closed | ProjectStatus.Draft | ProjectStatus.Active | ProjectStatus.PreLaunch | null = null;
+
+    switch (newStatusValue) {
+      case "in-review":
+        intendedStatus = ProjectStatus.InReview;
+        break;
+      case "closed":
+        intendedStatus = ProjectStatus.Closed;
+        break;
+      case "draft":
+        intendedStatus = ProjectStatus.Draft;
+        break;
+      case "active":
+        intendedStatus = ProjectStatus.Active;
+        break;
+      case "prelaunch":
+        intendedStatus = ProjectStatus.PreLaunch;
+        break;
+      default:
+        // It should not reach here if SelectItems are correctly set
+        console.error("Invalid status value:", newStatusValue);
+        return;
+    }
       
     setModalState({
       isOpen: true,
@@ -202,21 +224,23 @@ const ProjectsTable = ({
 
   const handleModalConfirm = async (
     projectId: string, 
-    reason: string, 
-    status: ProjectStatus.InReview | ProjectStatus.Closed
+    reason: string,
+    status: ProjectStatus.InReview | ProjectStatus.Closed | ProjectStatus.Draft | ProjectStatus.Active | ProjectStatus.PreLaunch
   ) => {
-    const mutationVariables = { input: { projectId, reason } };
-
     try {
       let result;
       let updatedProjectData = null;
 
       if (status === ProjectStatus.InReview) {
-        result = await putInReviewMutate({ variables: mutationVariables });
+        result = await putInReviewMutate({ variables: { input: { projectId, reason } } });
         updatedProjectData = result.data?.projectPutInReview;
-      } else {
-        result = await closeMutate({ variables: mutationVariables });
+      } else if (status === ProjectStatus.Closed) {
+        result = await closeMutate({ variables: { input: { projectId, reason } } });
         updatedProjectData = result.data?.projectClose;
+      } else if (status === ProjectStatus.Draft || status === ProjectStatus.Active || status === ProjectStatus.PreLaunch) {
+        result = await statusUpdateMutate({ variables: { input: { projectId, status } } });
+        // Assuming projectStatusUpdate returns a similar structure
+        updatedProjectData = result.data?.projectStatusUpdate;
       }
 
       toast({
@@ -259,6 +283,9 @@ const ProjectsTable = ({
   const getSelectValueFromStatus = (status: ProjectStatus | null | undefined): string => {
     if (status === ProjectStatus.InReview) return 'in-review';
     if (status === ProjectStatus.Closed) return 'closed';
+    if (status === ProjectStatus.Draft) return 'draft';
+    if (status === ProjectStatus.Active) return 'active';
+    if (status === ProjectStatus.PreLaunch) return 'prelaunch';
     return ''; 
   };
 
@@ -322,6 +349,15 @@ const ProjectsTable = ({
                         <SelectContent>
                           <SelectItem value="in-review">In Review</SelectItem>
                           <SelectItem value="closed">Closed</SelectItem>
+                          {!project.preLaunchedAt && !project.launchedAt && (
+                            <SelectItem value="draft">Draft</SelectItem>
+                          )}
+                          {project.preLaunchedAt && !project.launchedAt && (
+                            <SelectItem value="prelaunch">Prelaunch</SelectItem>
+                          )}
+                          {project.launchedAt && (
+                            <SelectItem value="active">Active</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </TableCell>
@@ -400,7 +436,7 @@ const ProjectsTable = ({
         projectId={modalState.projectId || ''}
         intendedStatus={modalState.intendedStatus || ProjectStatus.InReview}
         onConfirm={handleModalConfirm}
-        isLoading={putInReviewLoading || closeLoading}
+        isLoading={putInReviewLoading || closeLoading || statusUpdateLoading}
       />
     </>
   );

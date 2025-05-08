@@ -22,8 +22,8 @@ interface ProjectStatusReasonModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string; // Assuming ID is string, adjust if BigInt or number
-  intendedStatus: ProjectStatus.InReview | ProjectStatus.Closed; // Use enum from generated types
-  onConfirm: (projectId: string, reason: string, status: ProjectStatus.InReview | ProjectStatus.Closed) => void;
+  intendedStatus: ProjectStatus.InReview | ProjectStatus.Closed | ProjectStatus.Draft | ProjectStatus.Active | ProjectStatus.PreLaunch; // Use enum from generated types
+  onConfirm: (projectId: string, reason: string, status: ProjectStatus.InReview | ProjectStatus.Closed | ProjectStatus.Draft | ProjectStatus.Active | ProjectStatus.PreLaunch) => void;
   isLoading: boolean;
 }
 
@@ -46,8 +46,14 @@ const ProjectStatusReasonModal = ({
   const [selectedReason, setSelectedReason] = useState<string>('');
 
   const handleConfirm = () => {
-    if (selectedReason) {
-      onConfirm(projectId, selectedReason, intendedStatus);
+    // Reason is only required for InReview or Closed statuses
+    if (intendedStatus === ProjectStatus.InReview || intendedStatus === ProjectStatus.Closed) {
+      if (selectedReason) {
+        onConfirm(projectId, selectedReason, intendedStatus);
+      }
+    } else {
+      // For other statuses, reason is not applicable, pass an empty string or handle as needed
+      onConfirm(projectId, '', intendedStatus);
     }
   };
 
@@ -56,8 +62,16 @@ const ProjectStatusReasonModal = ({
     onOpenChange(false);
   };
 
-  const title = intendedStatus === ProjectStatus.InReview ? 'Mark Project for Review' : 'Close Project';
-  const description = `Select a reason for marking project ID ${projectId} as ${intendedStatus === ProjectStatus.InReview ? 'In Review' : 'Closed'}.`;
+  // Determine if a reason is required for the current status
+  const requiresReason = intendedStatus === ProjectStatus.InReview || intendedStatus === ProjectStatus.Closed;
+
+  let title = 'Update Project Status';
+  let description = `Confirm updating status for project ID ${projectId} to ${intendedStatus}.`;
+
+  if (requiresReason) {
+    title = intendedStatus === ProjectStatus.InReview ? 'Mark Project for Review' : 'Close Project';
+    description = `Select a reason for marking project ID ${projectId} as ${intendedStatus === ProjectStatus.InReview ? 'In Review' : 'Closed'}.`;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -66,33 +80,35 @@ const ProjectStatusReasonModal = ({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="reason-select" className="text-right">
-              Reason
-            </Label>
-            <Select 
-              value={selectedReason}
-              onValueChange={setSelectedReason}
-            >
-              <SelectTrigger id="reason-select" className="col-span-3">
-                <SelectValue placeholder="Select a reason" />
-              </SelectTrigger>
-              <SelectContent>
-                {REASONS.map((reason) => (
-                  <SelectItem key={reason} value={reason}>
-                    {reason}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {requiresReason && (
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="reason-select" className="text-right">
+                Reason
+              </Label>
+              <Select 
+                value={selectedReason}
+                onValueChange={setSelectedReason}
+              >
+                <SelectTrigger id="reason-select" className="col-span-3">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REASONS.map((reason) => (
+                    <SelectItem key={reason} value={reason}>
+                      {reason}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={!selectedReason || isLoading}>
+          <Button onClick={handleConfirm} disabled={(requiresReason && !selectedReason) || isLoading}>
             {isLoading ? 'Confirming...' : 'Confirm'}
           </Button>
         </DialogFooter>

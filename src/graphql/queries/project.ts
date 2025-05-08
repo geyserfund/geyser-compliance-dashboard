@@ -20,6 +20,8 @@ const PROJECT_FIELDS_FRAGMENT = gql`
       }
     }
     createdAt
+    launchedAt
+    preLaunchedAt
     # balance # Example if needed
     # location { country { code name } region } # Example
   }

@@ -6690,7 +6690,14 @@ export type ProjectCloseMutationVariables = Exact<{
 
 export type ProjectCloseMutation = { __typename?: 'Mutation', projectClose: { __typename?: 'Project', id: any, status?: ProjectStatus | null, rejectionReason?: string | null } };
 
-export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, rejectionReason?: string | null, createdAt: string, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string, email?: string | null } }> };
+export type ProjectStatusUpdateMutationVariables = Exact<{
+  input: ProjectStatusUpdate;
+}>;
+
+
+export type ProjectStatusUpdateMutation = { __typename?: 'Mutation', projectStatusUpdate: { __typename?: 'Project', id: any, status?: ProjectStatus | null, launchedAt?: any | null, preLaunchedAt?: any | null } };
+
+export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, rejectionReason?: string | null, createdAt: string, launchedAt?: any | null, preLaunchedAt?: any | null, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string, email?: string | null } }> };
 
 export type ProjectsGetQueryVariables = Exact<{
   input: ProjectsGetQueryInput;
@@ -6717,6 +6724,8 @@ export const ProjectFieldsFragmentDoc = gql`
     }
   }
   createdAt
+  launchedAt
+  preLaunchedAt
 }
     `;
 export const ComplianceDashboardDataDocument = gql`
@@ -6832,6 +6841,42 @@ export function useProjectCloseMutation(baseOptions?: Apollo.MutationHookOptions
 export type ProjectCloseMutationHookResult = ReturnType<typeof useProjectCloseMutation>;
 export type ProjectCloseMutationResult = Apollo.MutationResult<ProjectCloseMutation>;
 export type ProjectCloseMutationOptions = Apollo.BaseMutationOptions<ProjectCloseMutation, ProjectCloseMutationVariables>;
+export const ProjectStatusUpdateDocument = gql`
+    mutation ProjectStatusUpdate($input: ProjectStatusUpdate!) {
+  projectStatusUpdate(input: $input) {
+    id
+    status
+    launchedAt
+    preLaunchedAt
+  }
+}
+    `;
+export type ProjectStatusUpdateMutationFn = Apollo.MutationFunction<ProjectStatusUpdateMutation, ProjectStatusUpdateMutationVariables>;
+
+/**
+ * __useProjectStatusUpdateMutation__
+ *
+ * To run a mutation, you first call `useProjectStatusUpdateMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useProjectStatusUpdateMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [projectStatusUpdateMutation, { data, loading, error }] = useProjectStatusUpdateMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useProjectStatusUpdateMutation(baseOptions?: Apollo.MutationHookOptions<ProjectStatusUpdateMutation, ProjectStatusUpdateMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<ProjectStatusUpdateMutation, ProjectStatusUpdateMutationVariables>(ProjectStatusUpdateDocument, options);
+      }
+export type ProjectStatusUpdateMutationHookResult = ReturnType<typeof useProjectStatusUpdateMutation>;
+export type ProjectStatusUpdateMutationResult = Apollo.MutationResult<ProjectStatusUpdateMutation>;
+export type ProjectStatusUpdateMutationOptions = Apollo.BaseMutationOptions<ProjectStatusUpdateMutation, ProjectStatusUpdateMutationVariables>;
 export const ProjectsGetDocument = gql`
     query ProjectsGet($input: ProjectsGetQueryInput!) {
   projectsGet(input: $input) {

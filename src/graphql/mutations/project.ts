@@ -18,4 +18,15 @@ export const PROJECT_CLOSE = gql`
       rejectionReason
     }
   }
+`;
+
+export const PROJECT_STATUS_UPDATE = gql`
+  mutation ProjectStatusUpdate($input: ProjectStatusUpdate!) {
+    projectStatusUpdate(input: $input) {
+      id
+      status
+      launchedAt
+      preLaunchedAt
+    }
+  }
 `; 
