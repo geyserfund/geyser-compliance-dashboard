@@ -23,7 +23,7 @@ import {
   useProjectPutInReviewMutation 
 } from "@/types/generated/graphql";
 import ProjectStatusReasonModal from "./ProjectStatusReasonModal";
-import { ExternalLink, Star, Check } from "lucide-react";
+import { ExternalLink, Star, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const LOCAL_STORAGE_WATCHLIST_KEY = "dashboardWatchlist";
@@ -141,6 +141,32 @@ const ProjectsTable = ({
     }
     saveWatchlist(updatedWatchlist);
     setWatchlist(updatedWatchlist);
+  };
+
+  const handleCopyEmail = (email: string | undefined) => {
+    if (email) {
+      navigator.clipboard.writeText(email)
+        .then(() => {
+          toast({
+            title: "Email Copied",
+            description: `${email} copied to clipboard.`,
+          });
+        })
+        .catch(err => {
+          console.error("Failed to copy email: ", err);
+          toast({
+            title: "Error",
+            description: "Could not copy email to clipboard.",
+            variant: "destructive",
+          });
+        });
+    } else {
+      toast({
+        title: "No Email",
+        description: "This project does not have an owner email.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleMarkAsReviewed = (projectId: string) => {
@@ -266,12 +292,13 @@ const ProjectsTable = ({
               <TableHead className="w-[50px]">URL</TableHead>
               <TableHead className="w-[80px]">Watchlist</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
+              <TableHead className="w-[80px]">Copy Email</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleProjects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   {projects.length > 0 ? "All recent projects marked as reviewed or none match filter" : "No projects found"}
                 </TableCell>
               </TableRow>
@@ -347,6 +374,17 @@ const ProjectsTable = ({
                           <Check className="h-4 w-4" />
                         </Button>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCopyEmail(project.owners?.[0]?.user?.email)}
+                        aria-label="Copy owner's email"
+                        disabled={!project.owners?.[0]?.user?.email}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );

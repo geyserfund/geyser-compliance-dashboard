@@ -16,6 +16,7 @@ const PROJECT_FIELDS_FRAGMENT = gql`
       user {
         id
         username
+        email
       }
     }
     createdAt

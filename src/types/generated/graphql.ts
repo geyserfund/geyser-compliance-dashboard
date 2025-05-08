@@ -385,6 +385,13 @@ export type ContributionsGetResponse = {
   pagination?: Maybe<CursorPaginationResponse>;
 };
 
+export type ContributionsSummary = {
+  __typename?: 'ContributionsSummary';
+  contributionsTotal: Scalars['Int']['output'];
+  contributionsTotalUsd: Scalars['Float']['output'];
+  contributorsCount: Scalars['Int']['output'];
+};
+
 export enum ContributionsSummaryPeriod {
   AllTime = 'ALL_TIME',
   Month = 'MONTH',
@@ -2651,6 +2658,7 @@ export type ProjectLinkMutationInput = {
 
 export type ProjectMostFunded = {
   __typename?: 'ProjectMostFunded';
+  contributionsSummary?: Maybe<ContributionsSummary>;
   /** The project details */
   project: Project;
 };
@@ -2771,6 +2779,12 @@ export type ProjectRewardCurrencyUpdateRewardsInput = {
 
 export type ProjectRewardTrendingMonthlyGetRow = {
   __typename?: 'ProjectRewardTrendingMonthlyGetRow';
+  count: Scalars['Int']['output'];
+  projectReward: ProjectReward;
+};
+
+export type ProjectRewardTrendingQuarterlyGetRow = {
+  __typename?: 'ProjectRewardTrendingQuarterlyGetRow';
   count: Scalars['Int']['output'];
   projectReward: ProjectReward;
 };
@@ -3058,6 +3072,7 @@ export type Query = {
   projectRewardGet: ProjectReward;
   projectRewardsGet: Array<ProjectReward>;
   projectRewardsTrendingMonthlyGet: Array<ProjectRewardTrendingMonthlyGetRow>;
+  projectRewardsTrendingQuarterlyGet: Array<ProjectRewardTrendingQuarterlyGetRow>;
   projectRewardsTrendingWeeklyGet: Array<ProjectRewardTrendingWeeklyGetRow>;
   projectStatsGet: ProjectStats;
   projectSubscriptionPlan?: Maybe<ProjectSubscriptionPlan>;
@@ -3654,6 +3669,11 @@ export type User = {
 };
 
 
+export type UserContributionsArgs = {
+  input?: InputMaybe<UserContributionsInput>;
+};
+
+
 export type UserEntriesArgs = {
   input?: InputMaybe<UserEntriesGetInput>;
 };
@@ -3704,6 +3724,10 @@ export type UserContributionLimit = {
 export type UserContributionLimits = {
   __typename?: 'UserContributionLimits';
   monthly: UserContributionLimit;
+};
+
+export type UserContributionsInput = {
+  pagination?: InputMaybe<PaginationInput>;
 };
 
 export type UserEmailUpdateInput = {
@@ -4114,6 +4138,7 @@ export type ResolversTypes = {
   ContributionStatusUpdatedInput: ContributionStatusUpdatedInput;
   ContributionStatusUpdatedSubscriptionResponse: ResolverTypeWrapper<Omit<ContributionStatusUpdatedSubscriptionResponse, 'contribution'> & { contribution: ResolversTypes['Contribution'] }>;
   ContributionsGetResponse: ResolverTypeWrapper<Omit<ContributionsGetResponse, 'contributions'> & { contributions: Array<ResolversTypes['Contribution']> }>;
+  ContributionsSummary: ResolverTypeWrapper<ContributionsSummary>;
   ContributionsSummaryPeriod: ContributionsSummaryPeriod;
   ContributionsWhereContributionStatus: ContributionsWhereContributionStatus;
   ContributorContributionsSummary: ResolverTypeWrapper<ContributorContributionsSummary>;
@@ -4384,6 +4409,7 @@ export type ResolversTypes = {
   ProjectRewardCurrencyUpdate: ProjectRewardCurrencyUpdate;
   ProjectRewardCurrencyUpdateRewardsInput: ProjectRewardCurrencyUpdateRewardsInput;
   ProjectRewardTrendingMonthlyGetRow: ResolverTypeWrapper<ProjectRewardTrendingMonthlyGetRow>;
+  ProjectRewardTrendingQuarterlyGetRow: ResolverTypeWrapper<ProjectRewardTrendingQuarterlyGetRow>;
   ProjectRewardTrendingWeeklyGetRow: ResolverTypeWrapper<ProjectRewardTrendingWeeklyGetRow>;
   ProjectRewardsGroupedByRewardIdStats: ResolverTypeWrapper<ProjectRewardsGroupedByRewardIdStats>;
   ProjectRewardsGroupedByRewardIdStatsProjectReward: ResolverTypeWrapper<ProjectRewardsGroupedByRewardIdStatsProjectReward>;
@@ -4452,6 +4478,7 @@ export type ResolversTypes = {
   UserComplianceDetails: ResolverTypeWrapper<UserComplianceDetails>;
   UserContributionLimit: ResolverTypeWrapper<UserContributionLimit>;
   UserContributionLimits: ResolverTypeWrapper<UserContributionLimits>;
+  UserContributionsInput: UserContributionsInput;
   UserEmailUpdateInput: UserEmailUpdateInput;
   UserEntityType: UserEntityType;
   UserEntriesGetInput: UserEntriesGetInput;
@@ -4541,6 +4568,7 @@ export type ResolversParentTypes = {
   ContributionStatusUpdatedInput: ContributionStatusUpdatedInput;
   ContributionStatusUpdatedSubscriptionResponse: Omit<ContributionStatusUpdatedSubscriptionResponse, 'contribution'> & { contribution: ResolversParentTypes['Contribution'] };
   ContributionsGetResponse: Omit<ContributionsGetResponse, 'contributions'> & { contributions: Array<ResolversParentTypes['Contribution']> };
+  ContributionsSummary: ContributionsSummary;
   ContributorContributionsSummary: ContributorContributionsSummary;
   ContributorStats: ContributorStats;
   Country: Country;
@@ -4768,6 +4796,7 @@ export type ResolversParentTypes = {
   ProjectRewardCurrencyUpdate: ProjectRewardCurrencyUpdate;
   ProjectRewardCurrencyUpdateRewardsInput: ProjectRewardCurrencyUpdateRewardsInput;
   ProjectRewardTrendingMonthlyGetRow: ProjectRewardTrendingMonthlyGetRow;
+  ProjectRewardTrendingQuarterlyGetRow: ProjectRewardTrendingQuarterlyGetRow;
   ProjectRewardTrendingWeeklyGetRow: ProjectRewardTrendingWeeklyGetRow;
   ProjectRewardsGroupedByRewardIdStats: ProjectRewardsGroupedByRewardIdStats;
   ProjectRewardsGroupedByRewardIdStatsProjectReward: ProjectRewardsGroupedByRewardIdStatsProjectReward;
@@ -4822,6 +4851,7 @@ export type ResolversParentTypes = {
   UserComplianceDetails: UserComplianceDetails;
   UserContributionLimit: UserContributionLimit;
   UserContributionLimits: UserContributionLimits;
+  UserContributionsInput: UserContributionsInput;
   UserEmailUpdateInput: UserEmailUpdateInput;
   UserEntriesGetInput: UserEntriesGetInput;
   UserEntriesGetWhereInput: UserEntriesGetWhereInput;
@@ -5046,6 +5076,13 @@ export type ContributionStatusUpdatedSubscriptionResponseResolvers<ContextType =
 export type ContributionsGetResponseResolvers<ContextType = any, ParentType extends ResolversParentTypes['ContributionsGetResponse'] = ResolversParentTypes['ContributionsGetResponse']> = {
   contributions?: Resolver<Array<ResolversTypes['Contribution']>, ParentType, ContextType>;
   pagination?: Resolver<Maybe<ResolversTypes['CursorPaginationResponse']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ContributionsSummaryResolvers<ContextType = any, ParentType extends ResolversParentTypes['ContributionsSummary'] = ResolversParentTypes['ContributionsSummary']> = {
+  contributionsTotal?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  contributionsTotalUsd?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  contributorsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -5973,6 +6010,7 @@ export type ProjectLeaderboardContributorsRowResolvers<ContextType = any, Parent
 };
 
 export type ProjectMostFundedResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectMostFunded'] = ResolversParentTypes['ProjectMostFunded']> = {
+  contributionsSummary?: Resolver<Maybe<ResolversTypes['ContributionsSummary']>, ParentType, ContextType>;
   project?: Resolver<ResolversTypes['Project'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -6030,6 +6068,12 @@ export type ProjectRewardResolvers<ContextType = any, ParentType extends Resolve
 };
 
 export type ProjectRewardTrendingMonthlyGetRowResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectRewardTrendingMonthlyGetRow'] = ResolversParentTypes['ProjectRewardTrendingMonthlyGetRow']> = {
+  count?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  projectReward?: Resolver<ResolversTypes['ProjectReward'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ProjectRewardTrendingQuarterlyGetRowResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectRewardTrendingQuarterlyGetRow'] = ResolversParentTypes['ProjectRewardTrendingQuarterlyGetRow']> = {
   count?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   projectReward?: Resolver<ResolversTypes['ProjectReward'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -6176,6 +6220,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   projectRewardGet?: Resolver<ResolversTypes['ProjectReward'], ParentType, ContextType, RequireFields<QueryProjectRewardGetArgs, 'input'>>;
   projectRewardsGet?: Resolver<Array<ResolversTypes['ProjectReward']>, ParentType, ContextType, RequireFields<QueryProjectRewardsGetArgs, 'input'>>;
   projectRewardsTrendingMonthlyGet?: Resolver<Array<ResolversTypes['ProjectRewardTrendingMonthlyGetRow']>, ParentType, ContextType>;
+  projectRewardsTrendingQuarterlyGet?: Resolver<Array<ResolversTypes['ProjectRewardTrendingQuarterlyGetRow']>, ParentType, ContextType>;
   projectRewardsTrendingWeeklyGet?: Resolver<Array<ResolversTypes['ProjectRewardTrendingWeeklyGetRow']>, ParentType, ContextType>;
   projectStatsGet?: Resolver<ResolversTypes['ProjectStats'], ParentType, ContextType, RequireFields<QueryProjectStatsGetArgs, 'input'>>;
   projectSubscriptionPlan?: Resolver<Maybe<ResolversTypes['ProjectSubscriptionPlan']>, ParentType, ContextType, RequireFields<QueryProjectSubscriptionPlanArgs, 'id'>>;
@@ -6263,7 +6308,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   badges?: Resolver<Array<ResolversTypes['UserBadge']>, ParentType, ContextType>;
   bio?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   complianceDetails?: Resolver<ResolversTypes['UserComplianceDetails'], ParentType, ContextType>;
-  contributions?: Resolver<Array<ResolversTypes['Contribution']>, ParentType, ContextType>;
+  contributions?: Resolver<Array<ResolversTypes['Contribution']>, ParentType, ContextType, Partial<UserContributionsArgs>>;
   email?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   emailVerifiedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   entityType?: Resolver<Maybe<ResolversTypes['UserEntityType']>, ParentType, ContextType>;
@@ -6464,6 +6509,7 @@ export type Resolvers<ContextType = any> = {
   ContributionPaymentsDetails?: ContributionPaymentsDetailsResolvers<ContextType>;
   ContributionStatusUpdatedSubscriptionResponse?: ContributionStatusUpdatedSubscriptionResponseResolvers<ContextType>;
   ContributionsGetResponse?: ContributionsGetResponseResolvers<ContextType>;
+  ContributionsSummary?: ContributionsSummaryResolvers<ContextType>;
   ContributorContributionsSummary?: ContributorContributionsSummaryResolvers<ContextType>;
   ContributorStats?: ContributorStatsResolvers<ContextType>;
   Country?: CountryResolvers<ContextType>;
@@ -6577,6 +6623,7 @@ export type Resolvers<ContextType = any> = {
   ProjectRegionsGetResult?: ProjectRegionsGetResultResolvers<ContextType>;
   ProjectReward?: ProjectRewardResolvers<ContextType>;
   ProjectRewardTrendingMonthlyGetRow?: ProjectRewardTrendingMonthlyGetRowResolvers<ContextType>;
+  ProjectRewardTrendingQuarterlyGetRow?: ProjectRewardTrendingQuarterlyGetRowResolvers<ContextType>;
   ProjectRewardTrendingWeeklyGetRow?: ProjectRewardTrendingWeeklyGetRowResolvers<ContextType>;
   ProjectRewardsGroupedByRewardIdStats?: ProjectRewardsGroupedByRewardIdStatsResolvers<ContextType>;
   ProjectRewardsGroupedByRewardIdStatsProjectReward?: ProjectRewardsGroupedByRewardIdStatsProjectRewardResolvers<ContextType>;
@@ -6643,7 +6690,7 @@ export type ProjectCloseMutationVariables = Exact<{
 
 export type ProjectCloseMutation = { __typename?: 'Mutation', projectClose: { __typename?: 'Project', id: any, status?: ProjectStatus | null, rejectionReason?: string | null } };
 
-export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, rejectionReason?: string | null, createdAt: string, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string } }> };
+export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, rejectionReason?: string | null, createdAt: string, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string, email?: string | null } }> };
 
 export type ProjectsGetQueryVariables = Exact<{
   input: ProjectsGetQueryInput;
@@ -6666,6 +6713,7 @@ export const ProjectFieldsFragmentDoc = gql`
     user {
       id
       username
+      email
     }
   }
   createdAt
