@@ -92,6 +92,7 @@ const SearchPage = () => {
             searchResults.length > 0 ? (
               <ProjectsTable
                 projects={searchResults}
+                disableReviewedFilter={true}
               />
             ) : (
               <p className="text-center text-muted-foreground py-8">No projects found matching your search.</p>
