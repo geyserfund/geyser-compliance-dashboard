@@ -33,6 +33,7 @@ const REASONS = [
   'Scam (fake content, fake medical expenses, etc.)',
   'Spam (irrelevant content with purposes of advertising, phishing, or debasing quality)',
   'Incomplete project (no clear story or aim)',
+  'Restricted project type'
 ];
 
 const ProjectStatusReasonModal = ({
