@@ -19,11 +19,30 @@ const PROJECT_FIELDS_FRAGMENT = gql`
         email
       }
     }
+    reviews {
+      id
+      projectId
+      status
+      version
+      rejectionReasons
+      reviewedAt
+      createdAt
+      updatedAt
+    }
     createdAt
     launchedAt
     preLaunchedAt
     # balance # Example if needed
     # location { country { code name } region } # Example
+  }
+`;
+
+export const GET_PROJECT = gql`
+  ${PROJECT_FIELDS_FRAGMENT}
+  query ProjectGet($where: UniqueProjectQueryInput!) {
+    projectGet(where: $where) {
+      ...ProjectFields
+    }
   }
 `;
 

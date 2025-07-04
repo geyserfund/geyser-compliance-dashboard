@@ -17,6 +17,8 @@ import DashboardIndex from "./pages/Dashboard/Index";
 import Watchlist from "./pages/Dashboard/Watchlist";
 import Search from "./pages/Dashboard/Search";
 import RecentProjectsPage from "./pages/Dashboard/Recent";
+import InReviewPage from "./pages/Dashboard/InReview";
+import { ProjectDetail } from "./pages/Dashboard/ProjectDetail";
 
 const queryClient = new QueryClient();
 
@@ -49,9 +51,11 @@ const AppRoutes = () => {
         </ProtectedRoute>
       }>
         <Route index element={<DashboardIndex />} />
+        <Route path="in-review" element={<InReviewPage />} />
         <Route path="recent" element={<RecentProjectsPage />} />
         <Route path="watchlist" element={<Watchlist />} />
         <Route path="search" element={<Search />} />
+        <Route path="project/:id" element={<ProjectDetail />} />
       </Route>
       
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

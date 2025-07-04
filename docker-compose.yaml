@@ -1,14 +1,10 @@
-version: '3.8'
-
 services:
   compliance-dashboard:
     container_name: geyser-compliance-dashboard
-    build:
-      context: .
-    platform: linux/amd64 
-    command:  sh -c "RUN_DOCKER=true && npm install && npm run dev"
+    image: oven/bun:1-alpine
+    # platform: linux/arm64 
+    command:  sh -c "RUN_DOCKER=true && bun install && bun run dev"
     working_dir: /usr/app
-    image:  geyser-compliance-dashboard
     env_file: .env
     ports:
       - "3003:3003"
@@ -23,7 +19,3 @@ services:
 networks:
   shared-net:
     external: true
-
-# Remove the named volume definition
-# volumes:
-#  node_modules:

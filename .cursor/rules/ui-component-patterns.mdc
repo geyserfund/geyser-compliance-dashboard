@@ -1,0 +1,478 @@
+---
+alwaysApply: false
+---
+
+# UI Component Enhancement Patterns
+
+## Overview
+Patterns for enhancing existing UI components, especially tables and interactive elements, while maintaining backwards compatibility and clean architecture.
+
+## 1. Table Component Enhancements
+
+### Adding Conditional Columns
+When modifying table components to show different data based on context:
+
+```typescript
+// Component Props Pattern
+interface TableProps {
+  // ... existing props
+  showAlternativeData?: boolean; // Feature flag for new behavior
+}
+
+// Implementation Pattern
+const TableComponent = ({ 
+  showAlternativeData = false, // Sensible default
+  ...otherProps 
+}) => {
+  return (
+    <TableCell>
+      {showAlternativeData 
+        ? getAlternativeDisplay(data) 
+        : getStandardDisplay(data)
+      }
+    </TableCell>
+  );
+};
+```
+
+### Removing Table Columns
+When removing columns, update:
+1. **Headers**: Remove `<TableHead>` element
+2. **Cells**: Remove corresponding `<TableCell>` elements  
+3. **ColSpan**: Update empty state `colSpan` value
+4. **Imports**: Remove unused icon imports
+5. **Functions**: Remove related handler functions
+
+### Helper Function Organization
+Group related helper functions together in component:
+
+```typescript
+// Data processing helpers
+const getLatestItem = (items) => { /* ... */ };
+const processItemData = (item) => { /* ... */ };
+
+// UI state helpers  
+const isActionDisabled = (item) => { /* ... */ };
+const getStatusBadge = (status) => { /* ... */ };
+
+// Event handlers
+const handleAction = (id) => { /* ... */ };
+```
+
+## 2. Conditional UI States
+
+### Disabled Buttons with Tooltips
+Pattern for buttons that should be disabled with explanatory tooltips:
+
+```typescript
+// State determination
+const getButtonState = (item): { disabled: boolean; reason?: string } => {
+  if (someCondition) {
+    return { disabled: true, reason: "Explanation for user" };
+  }
+  return { disabled: false };
+};
+
+// UI Implementation
+{buttonState.disabled ? (
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>
+          <Button disabled={true}>Action</Button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{buttonState.reason}</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+) : (
+  <Button onClick={handleAction}>Action</Button>
+)}
+```
+
+### Status Badge Patterns
+Consistent status display across components:
+
+```typescript
+const getStatusBadge = (status) => {
+  switch (status) {
+    case 'APPROVED':
+      return <Badge className="status-approved">Approved</Badge>;
+    case 'REJECTED':  
+      return <Badge className="status-rejected">Rejected</Badge>;
+    case 'PENDING':
+      return <Badge className="status-pending">Pending</Badge>;
+    default:
+      return <Badge variant="outline">Unknown</Badge>;
+  }
+};
+```
+
+## 3. Component Prop Design
+
+### Feature Flags
+Use boolean props to enable new functionality:
+
+```typescript
+interface ComponentProps {
+  // Core functionality
+  data: DataType[];
+  onAction: (id: string) => void;
+  
+  // Feature flags
+  enableNewFeature?: boolean;
+  showAlternativeView?: boolean;
+  disableDefaultBehavior?: boolean;
+}
+```
+
+### Backwards Compatibility
+- Always provide sensible defaults
+- Keep existing behavior as default
+- Make new features opt-in via props
+- Document breaking changes clearly
+
+## 4. Auto-Behavior Patterns
+
+### Auto-State Updates After Actions
+Pattern for automatically updating UI state after successful operations:
+
+```typescript
+const handleAction = async (id: string) => {
+  try {
+    await performMutation({ variables: { id } });
+    
+    // Auto-update related state
+    updateLocalState(id);
+    
+    // Show success feedback
+    toast({ title: "Success", description: "Action completed" });
+    
+    // Close modals/reset forms
+    resetUIState();
+    
+  } catch (error) {
+    // Handle error without auto-updates
+    toast({ title: "Error", description: error.message, variant: "destructive" });
+  }
+};
+```
+
+### State Coordination
+When actions affect multiple parts of the UI:
+- Update all relevant local state immediately
+- Use optimistic updates for better UX
+- Revert on error if necessary
+- Keep localStorage and component state in sync
+
+## 5. Data Processing Patterns
+
+### Latest Item Selection
+When working with arrays of related data (e.g., reviews, comments):
+
+```typescript
+const getLatestItem = (items: ItemType[]) => {
+  if (!items || items.length === 0) return null;
+  
+  // Sort by date descending
+  const sortedItems = [...items].sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  
+  return sortedItems[0];
+};
+```
+
+### Conditional Data Display
+Pattern for showing different data based on context:
+
+```typescript
+// In component
+const displayData = useMemo(() => {
+  if (showAlternativeData) {
+    return processAlternativeData(rawData);
+  }
+  return processStandardData(rawData);
+}, [rawData, showAlternativeData]);
+```
+
+## 6. Import Organization
+
+### UI Components
+Group imports logically:
+
+```typescript
+// React imports
+import { useState, useEffect, useMemo } from "react";
+
+// UI component imports  
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Icon imports
+import { Star, Copy, FileText } from "lucide-react";
+
+// GraphQL imports
+import { useQuery, useMutation } from "@apollo/client";
+import { ProjectFieldsFragment, useProjectMutation } from "@/types/generated/graphql";
+
+// Local imports
+import LocalComponent from "./LocalComponent";
+```
+
+### Cleanup After Refactoring
+- Remove unused imports immediately
+- Remove unused functions and variables
+- Update TypeScript interfaces to match usage
+- Run linter to catch remaining issues
+
+## Common Patterns Summary
+
+1. **Feature Flags**: Use optional boolean props for new functionality
+2. **Backwards Compatibility**: Default to existing behavior
+3. **Helper Functions**: Group logically within components  
+4. **Conditional Rendering**: Use ternary operators for simple conditions
+5. **Tooltips**: Wrap disabled elements for user guidance
+6. **Auto-Updates**: Update UI state immediately after successful actions
+7. **Data Processing**: Use helper functions for complex data transformations
+8. **Import Organization**: Group imports by source and purpose
+# UI Component Enhancement Patterns
+
+## Overview
+Patterns for enhancing existing UI components, especially tables and interactive elements, while maintaining backwards compatibility and clean architecture.
+
+## 1. Table Component Enhancements
+
+### Adding Conditional Columns
+When modifying table components to show different data based on context:
+
+```typescript
+// Component Props Pattern
+interface TableProps {
+  // ... existing props
+  showAlternativeData?: boolean; // Feature flag for new behavior
+}
+
+// Implementation Pattern
+const TableComponent = ({ 
+  showAlternativeData = false, // Sensible default
+  ...otherProps 
+}) => {
+  return (
+    <TableCell>
+      {showAlternativeData 
+        ? getAlternativeDisplay(data) 
+        : getStandardDisplay(data)
+      }
+    </TableCell>
+  );
+};
+```
+
+### Removing Table Columns
+When removing columns, update:
+1. **Headers**: Remove `<TableHead>` element
+2. **Cells**: Remove corresponding `<TableCell>` elements  
+3. **ColSpan**: Update empty state `colSpan` value
+4. **Imports**: Remove unused icon imports
+5. **Functions**: Remove related handler functions
+
+### Helper Function Organization
+Group related helper functions together in component:
+
+```typescript
+// Data processing helpers
+const getLatestItem = (items) => { /* ... */ };
+const processItemData = (item) => { /* ... */ };
+
+// UI state helpers  
+const isActionDisabled = (item) => { /* ... */ };
+const getStatusBadge = (status) => { /* ... */ };
+
+// Event handlers
+const handleAction = (id) => { /* ... */ };
+```
+
+## 2. Conditional UI States
+
+### Disabled Buttons with Tooltips
+Pattern for buttons that should be disabled with explanatory tooltips:
+
+```typescript
+// State determination
+const getButtonState = (item): { disabled: boolean; reason?: string } => {
+  if (someCondition) {
+    return { disabled: true, reason: "Explanation for user" };
+  }
+  return { disabled: false };
+};
+
+// UI Implementation
+{buttonState.disabled ? (
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>
+          <Button disabled={true}>Action</Button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{buttonState.reason}</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+) : (
+  <Button onClick={handleAction}>Action</Button>
+)}
+```
+
+### Status Badge Patterns
+Consistent status display across components:
+
+```typescript
+const getStatusBadge = (status) => {
+  switch (status) {
+    case 'APPROVED':
+      return <Badge className="status-approved">Approved</Badge>;
+    case 'REJECTED':  
+      return <Badge className="status-rejected">Rejected</Badge>;
+    case 'PENDING':
+      return <Badge className="status-pending">Pending</Badge>;
+    default:
+      return <Badge variant="outline">Unknown</Badge>;
+  }
+};
+```
+
+## 3. Component Prop Design
+
+### Feature Flags
+Use boolean props to enable new functionality:
+
+```typescript
+interface ComponentProps {
+  // Core functionality
+  data: DataType[];
+  onAction: (id: string) => void;
+  
+  // Feature flags
+  enableNewFeature?: boolean;
+  showAlternativeView?: boolean;
+  disableDefaultBehavior?: boolean;
+}
+```
+
+### Backwards Compatibility
+- Always provide sensible defaults
+- Keep existing behavior as default
+- Make new features opt-in via props
+- Document breaking changes clearly
+
+## 4. Auto-Behavior Patterns
+
+### Auto-State Updates After Actions
+Pattern for automatically updating UI state after successful operations:
+
+```typescript
+const handleAction = async (id: string) => {
+  try {
+    await performMutation({ variables: { id } });
+    
+    // Auto-update related state
+    updateLocalState(id);
+    
+    // Show success feedback
+    toast({ title: "Success", description: "Action completed" });
+    
+    // Close modals/reset forms
+    resetUIState();
+    
+  } catch (error) {
+    // Handle error without auto-updates
+    toast({ title: "Error", description: error.message, variant: "destructive" });
+  }
+};
+```
+
+### State Coordination
+When actions affect multiple parts of the UI:
+- Update all relevant local state immediately
+- Use optimistic updates for better UX
+- Revert on error if necessary
+- Keep localStorage and component state in sync
+
+## 5. Data Processing Patterns
+
+### Latest Item Selection
+When working with arrays of related data (e.g., reviews, comments):
+
+```typescript
+const getLatestItem = (items: ItemType[]) => {
+  if (!items || items.length === 0) return null;
+  
+  // Sort by date descending
+  const sortedItems = [...items].sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  
+  return sortedItems[0];
+};
+```
+
+### Conditional Data Display
+Pattern for showing different data based on context:
+
+```typescript
+// In component
+const displayData = useMemo(() => {
+  if (showAlternativeData) {
+    return processAlternativeData(rawData);
+  }
+  return processStandardData(rawData);
+}, [rawData, showAlternativeData]);
+```
+
+## 6. Import Organization
+
+### UI Components
+Group imports logically:
+
+```typescript
+// React imports
+import { useState, useEffect, useMemo } from "react";
+
+// UI component imports  
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Icon imports
+import { Star, Copy, FileText } from "lucide-react";
+
+// GraphQL imports
+import { useQuery, useMutation } from "@apollo/client";
+import { ProjectFieldsFragment, useProjectMutation } from "@/types/generated/graphql";
+
+// Local imports
+import LocalComponent from "./LocalComponent";
+```
+
+### Cleanup After Refactoring
+- Remove unused imports immediately
+- Remove unused functions and variables
+- Update TypeScript interfaces to match usage
+- Run linter to catch remaining issues
+
+## Common Patterns Summary
+
+1. **Feature Flags**: Use optional boolean props for new functionality
+2. **Backwards Compatibility**: Default to existing behavior
+3. **Helper Functions**: Group logically within components  
+4. **Conditional Rendering**: Use ternary operators for simple conditions
+5. **Tooltips**: Wrap disabled elements for user guidance
+6. **Auto-Updates**: Update UI state immediately after successful actions
+7. **Data Processing**: Use helper functions for complex data transformations
+8. **Import Organization**: Group imports by source and purpose
