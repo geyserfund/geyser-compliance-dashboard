@@ -24,6 +24,7 @@ const PROJECT_FIELDS_FRAGMENT = gql`
       projectId
       status
       version
+      reviewNotes
       rejectionReasons
       reviewedAt
       createdAt

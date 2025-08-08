@@ -7,6 +7,7 @@ export const PROJECT_REVIEW_SUBMIT = gql`
       projectId
       status
       rejectionReasons
+      reviewNotes
       reviewedAt
       createdAt
       updatedAt

@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectReviewStatusInput, RejectionReason } from '@/types/generated/graphql';
 import { useRejectionReasons } from '@/hooks/useRejectionReasons';
@@ -26,7 +27,12 @@ interface ProjectReviewModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
-  onSubmit: (projectId: string, reviewStatus: ProjectReviewStatusInput, rejectionReasons?: RejectionReason[]) => void;
+  onSubmit: (
+    projectId: string,
+    reviewStatus: ProjectReviewStatusInput,
+    rejectionReasons?: RejectionReason[],
+    reviewNotes?: string
+  ) => void;
   isLoading: boolean;
 }
 
@@ -39,6 +45,7 @@ const ProjectReviewModal = ({
 }: ProjectReviewModalProps) => {
   const [selectedReviewType, setSelectedReviewType] = useState<ProjectReviewStatusInput | null>(null);
   const [selectedRejectionReasons, setSelectedRejectionReasons] = useState<RejectionReason[]>([]);
+  const [reviewNotes, setReviewNotes] = useState<string>('');
   const { reasons, loading: reasonsLoading, error: reasonsError, refetch } = useRejectionReasons();
 
   const handleSubmit = () => {
@@ -46,7 +53,8 @@ const ProjectReviewModal = ({
       onSubmit(
         projectId, 
         selectedReviewType, 
-        selectedRejectionReasons.length > 0 ? selectedRejectionReasons : undefined
+        selectedRejectionReasons.length > 0 ? selectedRejectionReasons : undefined,
+        reviewNotes?.trim() ? reviewNotes.trim() : undefined
       );
     }
   };
@@ -54,6 +62,7 @@ const ProjectReviewModal = ({
   const handleClose = () => {
     setSelectedReviewType(null);
     setSelectedRejectionReasons([]);
+    setReviewNotes('');
     onOpenChange(false);
   };
 
@@ -114,12 +123,13 @@ const ProjectReviewModal = ({
           {/* Review Type Selection */}
           <div className="grid gap-2">
             <Label htmlFor="review-type-select">Review Decision</Label>
-            <Select 
+              <Select 
               value={selectedReviewType || ''}
               onValueChange={(value) => {
                 setSelectedReviewType(value as ProjectReviewStatusInput);
                 // Clear rejection reasons when changing review type
                 setSelectedRejectionReasons([]);
+                  setReviewNotes('');
               }}
             >
               <SelectTrigger id="review-type-select">
@@ -148,10 +158,22 @@ const ProjectReviewModal = ({
             </Select>
           </div>
 
-          {/* Rejection Reasons Selection */}
+          {/* Review Notes & Rejection Reasons */}
           {showRejectionReasons && (
-            <div className="grid gap-2">
-              <Label>Rejection Reasons (optional)</Label>
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="review-notes">Review Notes (optional)</Label>
+                <Textarea
+                  id="review-notes"
+                  placeholder="Add specific notes or context for the creator..."
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Rejection Reasons (optional)</Label>
               {reasonsLoading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
@@ -197,6 +219,7 @@ const ProjectReviewModal = ({
                   ))}
                 </div>
               )}
+              </div>
             </div>
           )}
         </div>

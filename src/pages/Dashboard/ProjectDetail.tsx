@@ -14,7 +14,8 @@ export const ProjectDetail: React.FC = () => {
     variables: {
       where: { id: id ? parseInt(id) : undefined }
     },
-    skip: !id
+    skip: !id,
+    fetchPolicy: 'no-cache'
   });
 
   const [submitReview, { loading: submittingReview }] = useProjectReviewSubmitMutation({
@@ -33,14 +34,20 @@ export const ProjectDetail: React.FC = () => {
     navigate(-1);
   };
 
-  const handleReviewSubmit = async (projectId: string, reviewStatus: ProjectReviewStatusInput, rejectionReasons?: RejectionReason[]) => {
+  const handleReviewSubmit = async (
+    projectId: string,
+    reviewStatus: ProjectReviewStatusInput,
+    rejectionReasons?: RejectionReason[],
+    reviewNotes?: string
+  ) => {
     try {
       await submitReview({
         variables: {
           input: {
             projectId: parseInt(projectId),
             status: reviewStatus,
-            rejectionReasons: rejectionReasons || []
+            rejectionReasons: rejectionReasons || [],
+            reviewNotes: reviewNotes
           }
         }
       });

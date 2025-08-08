@@ -184,9 +184,10 @@ const ProjectsTable = ({
   };
 
   const handleReviewSubmit = async (
-    projectId: string, 
+    projectId: string,
     reviewStatus: ProjectReviewStatusInput,
-    rejectionReasons?: RejectionReason[]
+    rejectionReasons?: RejectionReason[],
+    reviewNotes?: string
   ) => {
     try {
       const result = await reviewSubmitMutate({ 
@@ -194,7 +195,8 @@ const ProjectsTable = ({
           input: { 
             projectId, 
             status: reviewStatus,
-            rejectionReasons: rejectionReasons && rejectionReasons.length > 0 ? rejectionReasons : undefined
+            rejectionReasons: rejectionReasons && rejectionReasons.length > 0 ? rejectionReasons : undefined,
+            reviewNotes: reviewNotes
           } 
         } 
       });
