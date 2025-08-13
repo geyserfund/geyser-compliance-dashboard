@@ -37,7 +37,13 @@ const DashboardPage = () => {
   const { data, loading, error, fetchMore } = useProjectsGetQuery({
     variables: {
       input: {
-        where: { statuses: [ProjectStatus.Active, ProjectStatus.Inactive, ProjectStatus.PreLaunch, ProjectStatus.Closed]},
+        where: { statuses: [
+          ProjectStatus.Active,
+          ProjectStatus.Inactive,
+          ProjectStatus.PreLaunch,
+          ProjectStatus.Closed,
+          ProjectStatus.InReview,
+        ]},
         orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
         pagination: { take: ITEMS_PER_PAGE }
       }
