@@ -236,6 +236,8 @@ const ProjectsTable = ({
          return <Badge variant="outline">Inactive</Badge>;
        case ProjectStatus.PreLaunch:
           return <Badge className="status-prelaunch">Pre-launch</Badge>;
+        case ProjectStatus.Accepted:
+          return <Badge className="status-accepted">Accepted</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
