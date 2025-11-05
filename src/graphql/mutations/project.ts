@@ -1,21 +1,16 @@
 import { gql } from '@apollo/client';
 
-export const PROJECT_PUT_IN_REVIEW = gql`
-  mutation ProjectPutInReview($input: ProjectPutInReviewMutationInput!) {
-    projectPutInReview(input: $input) {
+export const PROJECT_REVIEW_SUBMIT = gql`
+  mutation ProjectReviewSubmit($input: ProjectReviewSubmitInput!) {
+    projectReviewSubmit(input: $input) {
       id
+      projectId
       status
-      rejectionReason
-    }
-  }
-`;
-
-export const PROJECT_CLOSE = gql`
-  mutation ProjectClose($input: ProjectCloseMutationInput!) {
-    projectClose(input: $input) {
-      id
-      status
-      rejectionReason
+      rejectionReasons
+      reviewNotes
+      reviewedAt
+      createdAt
+      updatedAt
     }
   }
 `;

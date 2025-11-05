@@ -10,8 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "graph:format": "prettier --write \"src/types/generated/graphql.ts\"",
-    "graph:fetch": "node -e \"const variant = process.argv.slice(-1)[0]; if (!variant || variant.startsWith('-')) throw new Error('Missing or invalid variant argument. Usage: npm run graph:fetch -- <variant>'); require('child_process').execSync(`rover graph fetch geyser-graph@${variant} > ./schema.graphql`, { stdio: 'inherit' });\"",
-    "graph:generate": "npm run graph:fetch -- $@ && graphql-codegen --config codegen.ts && rm schema.graphql && npm run graph:format",
+    "graph:fetch": "node scripts/graph-fetch.cjs",
+    "graph:generate": "node scripts/graph-generate.cjs",
     "codegen": "dotenv -- graphql-codegen --config codegen.ts"
   },
   "dependencies": {
@@ -99,5 +99,6 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"
-  }
+  },
+  "packageManager": "yarn@3.5.0+sha256.e4fc5f94867cd0b492fb0a644f14e7b47c4387bc75d46b56e86db6d0f1a6cb97"
 }

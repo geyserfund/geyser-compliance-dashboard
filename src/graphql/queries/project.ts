@@ -8,10 +8,8 @@ const PROJECT_FIELDS_FRAGMENT = gql`
     title
     name # Needed for URL generation if not directly available
     status
+    fundingStrategy
     rejectionReason # Added this field
-    # Add other fields required by ProjectsTable (like images, rejectionReason, etc.)
-    # rejectionReason # Example: Uncomment if needed
-    # thumbnailImage # Example
     owners {
       user {
         id
@@ -19,11 +17,31 @@ const PROJECT_FIELDS_FRAGMENT = gql`
         email
       }
     }
+    reviews {
+      id
+      projectId
+      status
+      version
+      reviewNotes
+      rejectionReasons
+      reviewedAt
+      createdAt
+      updatedAt
+    }
     createdAt
     launchedAt
     preLaunchedAt
     # balance # Example if needed
     # location { country { code name } region } # Example
+  }
+`;
+
+export const GET_PROJECT = gql`
+  ${PROJECT_FIELDS_FRAGMENT}
+  query ProjectGet($where: UniqueProjectQueryInput!) {
+    projectGet(where: $where) {
+      ...ProjectFields
+    }
   }
 `;
 

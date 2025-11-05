@@ -1,0 +1,254 @@
+---
+globs: src/graphql/**/**.ts
+alwaysApply: false
+---
+# GraphQL Refactoring Rules
+
+## Overview
+Rules for safely refactoring GraphQL mutations, queries, and their usage across the application.
+
+## 1. Mutation Refactoring Process
+
+### Step 1: Update Mutation Definitions
+- **Location**: [`src/graphql/mutations/`](src/graphql/mutations/)
+- **Pattern**: Replace old mutations with new ones in GraphQL files
+- **Example**: Replace `projectPutInReview` and `projectClose` with `projectReviewSubmit`
+
+```typescript
+// Before
+export const PROJECT_PUT_IN_REVIEW = gql`...`;
+export const PROJECT_CLOSE = gql`...`;
+
+// After  
+export const PROJECT_REVIEW_SUBMIT = gql`...`;
+```
+
+### Step 2: Regenerate Types
+- **Command**: `docker exec -ti geyser-compliance-dashboard bun run codegen`
+- **Important**: Always regenerate types after changing GraphQL definitions
+- **Verification**: Check [`src/types/generated/graphql.ts`](src/types/generated/graphql.ts) for new types
+
+### Step 3: Update Component Imports
+- Replace old mutation hooks with new ones
+- Update type imports to match new GraphQL schema
+- Remove unused imports to keep code clean
+
+```typescript
+// Before
+import { useProjectPutInReviewMutation, useProjectCloseMutation } from '@/types/generated/graphql';
+
+// After
+import { useProjectReviewSubmitMutation } from '@/types/generated/graphql';
+```
+
+### Step 4: Update Component Logic
+- **Consolidation**: Multiple old mutations → single new mutation with different parameters
+- **Parameter Mapping**: Map old parameters to new input structure
+- **Response Handling**: Update success/error handling for new response types
+
+## 2. Fragment Extensions
+
+### Adding Related Data
+When extending fragments to include related data (e.g., project reviews):
+
+```typescript
+// In src/graphql/queries/project.ts
+const PROJECT_FIELDS_FRAGMENT = gql`
+  fragment ProjectFields on Project {
+    id
+    title
+    # ... existing fields
+    reviews {  // ← Add related data
+      id
+      status
+      createdAt
+      # ... review fields
+    }
+  }
+`;
+```
+
+### After Fragment Changes
+1. **Regenerate types**: `docker exec -ti geyser-compliance-dashboard bun run codegen`
+2. **Update components**: Use new data structure
+3. **Test thoroughly**: Ensure all components handle new data correctly
+
+## 3. Backwards Compatibility
+
+### Gradual Migration Strategy
+- Keep old logic temporarily during transition
+- Add new functionality alongside old
+- Remove old code only after full testing
+- Update all usages simultaneously when possible
+
+### Component Interface Updates
+- Add optional props for new functionality
+- Provide sensible defaults to maintain existing behavior
+- Use feature flags or conditional rendering during transition
+
+## 4. Testing After Refactoring
+
+### Build Verification
+```bash
+docker exec -ti geyser-compliance-dashboard bun run build
+```
+
+### Type Check
+```bash  
+docker exec -ti geyser-compliance-dashboard bun run type-check
+```
+
+### Manual Testing Checklist
+- [ ] All existing functionality still works
+- [ ] New functionality works as expected
+- [ ] No TypeScript errors
+- [ ] No console errors
+- [ ] UI renders correctly across all affected pages
+
+## 5. Common Pitfalls
+
+### Missing Type Regeneration
+- **Problem**: Using old types after schema changes
+- **Solution**: Always run codegen after GraphQL changes
+- **Detection**: TypeScript errors about missing properties
+
+### Incomplete Component Updates
+- **Problem**: Some components still use old mutations
+- **Solution**: Use global search to find all usages
+- **Command**: `grep -r "oldMutationName" src/`
+
+### Input Structure Mismatches
+- **Problem**: Passing wrong input structure to new mutations
+- **Solution**: Check generated types for correct input structure
+- **Debugging**: Log mutation variables before sending
+
+## Key Files Referenced
+- GraphQL Mutations: [`src/graphql/mutations/project.ts`](src/graphql/mutations/project.ts)
+- GraphQL Queries: [`src/graphql/queries/project.ts`](src/graphql/queries/project.ts)
+- Generated Types: [`src/types/generated/graphql.ts`](src/types/generated/graphql.ts)
+- Components: [`src/components/Dashboard/ProjectsTable.tsx`](src/components/Dashboard/ProjectsTable.tsx)
+# GraphQL Refactoring Rules
+
+## Overview
+Rules for safely refactoring GraphQL mutations, queries, and their usage across the application.
+
+## 1. Mutation Refactoring Process
+
+### Step 1: Update Mutation Definitions
+- **Location**: [`src/graphql/mutations/`](src/graphql/mutations/)
+- **Pattern**: Replace old mutations with new ones in GraphQL files
+- **Example**: Replace `projectPutInReview` and `projectClose` with `projectReviewSubmit`
+
+```typescript
+// Before
+export const PROJECT_PUT_IN_REVIEW = gql`...`;
+export const PROJECT_CLOSE = gql`...`;
+
+// After  
+export const PROJECT_REVIEW_SUBMIT = gql`...`;
+```
+
+### Step 2: Regenerate Types
+- **Command**: `docker exec -ti geyser-compliance-dashboard bun run codegen`
+- **Important**: Always regenerate types after changing GraphQL definitions
+- **Verification**: Check [`src/types/generated/graphql.ts`](src/types/generated/graphql.ts) for new types
+
+### Step 3: Update Component Imports
+- Replace old mutation hooks with new ones
+- Update type imports to match new GraphQL schema
+- Remove unused imports to keep code clean
+
+```typescript
+// Before
+import { useProjectPutInReviewMutation, useProjectCloseMutation } from '@/types/generated/graphql';
+
+// After
+import { useProjectReviewSubmitMutation } from '@/types/generated/graphql';
+```
+
+### Step 4: Update Component Logic
+- **Consolidation**: Multiple old mutations → single new mutation with different parameters
+- **Parameter Mapping**: Map old parameters to new input structure
+- **Response Handling**: Update success/error handling for new response types
+
+## 2. Fragment Extensions
+
+### Adding Related Data
+When extending fragments to include related data (e.g., project reviews):
+
+```typescript
+// In src/graphql/queries/project.ts
+const PROJECT_FIELDS_FRAGMENT = gql`
+  fragment ProjectFields on Project {
+    id
+    title
+    # ... existing fields
+    reviews {  // ← Add related data
+      id
+      status
+      createdAt
+      # ... review fields
+    }
+  }
+`;
+```
+
+### After Fragment Changes
+1. **Regenerate types**: `docker exec -ti geyser-compliance-dashboard bun run codegen`
+2. **Update components**: Use new data structure
+3. **Test thoroughly**: Ensure all components handle new data correctly
+
+## 3. Backwards Compatibility
+
+### Gradual Migration Strategy
+- Keep old logic temporarily during transition
+- Add new functionality alongside old
+- Remove old code only after full testing
+- Update all usages simultaneously when possible
+
+### Component Interface Updates
+- Add optional props for new functionality
+- Provide sensible defaults to maintain existing behavior
+- Use feature flags or conditional rendering during transition
+
+## 4. Testing After Refactoring
+
+### Build Verification
+```bash
+docker exec -ti geyser-compliance-dashboard bun run build
+```
+
+### Type Check
+```bash  
+docker exec -ti geyser-compliance-dashboard bun run type-check
+```
+
+### Manual Testing Checklist
+- [ ] All existing functionality still works
+- [ ] New functionality works as expected
+- [ ] No TypeScript errors
+- [ ] No console errors
+- [ ] UI renders correctly across all affected pages
+
+## 5. Common Pitfalls
+
+### Missing Type Regeneration
+- **Problem**: Using old types after schema changes
+- **Solution**: Always run codegen after GraphQL changes
+- **Detection**: TypeScript errors about missing properties
+
+### Incomplete Component Updates
+- **Problem**: Some components still use old mutations
+- **Solution**: Use global search to find all usages
+- **Command**: `grep -r "oldMutationName" src/`
+
+### Input Structure Mismatches
+- **Problem**: Passing wrong input structure to new mutations
+- **Solution**: Check generated types for correct input structure
+- **Debugging**: Log mutation variables before sending
+
+## Key Files Referenced
+- GraphQL Mutations: [`src/graphql/mutations/project.ts`](src/graphql/mutations/project.ts)
+- GraphQL Queries: [`src/graphql/queries/project.ts`](src/graphql/queries/project.ts)
+- Generated Types: [`src/types/generated/graphql.ts`](src/types/generated/graphql.ts)
+- Components: [`src/components/Dashboard/ProjectsTable.tsx`](src/components/Dashboard/ProjectsTable.tsx)

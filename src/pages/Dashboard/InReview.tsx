@@ -4,18 +4,17 @@ import {
   useProjectsGetQuery, 
   ProjectFieldsFragment,
   OrderByDirection, 
-  ProjectsOrderByField
+  ProjectsOrderByField,
+  ProjectStatus
 } from "@/types/generated/graphql";
 import ProjectsTable from "@/components/Dashboard/ProjectsTable";
 import { Search } from "lucide-react";
 import { useInView } from 'react-intersection-observer';
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 
 const ITEMS_PER_PAGE = 20;
 
-// Rename component
-const RecentProjectsPage = () => { 
+const InReviewPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const isFetchingMore = useRef(false);
   const initialLoadComplete = useRef(false);
@@ -30,7 +29,7 @@ const RecentProjectsPage = () => {
   const { data, loading, error, fetchMore } = useProjectsGetQuery({
     variables: {
       input: {
-        where: {},
+        where: { statuses: [ProjectStatus.InReview] }, // Only fetch projects in review
         orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
         pagination: { take: ITEMS_PER_PAGE }
       }
@@ -48,27 +47,23 @@ const RecentProjectsPage = () => {
   const projectsData: ProjectFieldsFragment[] = data?.projectsGet?.projects || [];
 
   const loadMoreProjects = async () => {
-    console.log("loadMoreProjects called. Checking conditions...");
     if (loading || isFetchingMore.current || !hasPotentiallyMoreData || !fetchMore) {
-      console.log("loadMoreProjects: Aborting fetch.", { loading, isFetching: isFetchingMore.current, hasPotentiallyMoreData });
       return;
     }
 
     const lastProjectId = projectsData[projectsData.length - 1]?.id;
 
     if (!lastProjectId && projectsData.length > 0) {
-      console.log("loadMoreProjects: Aborting fetch. Cannot determine cursor (lastProjectId).");
       return;
     }
 
-    console.log("loadMoreProjects: Proceeding with fetch. Cursor:", lastProjectId);
     isFetchingMore.current = true;
 
     try {
       await fetchMore({
         variables: {
           input: {
-            where: {},
+            where: { statuses: [ProjectStatus.InReview] },
             orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
             pagination: {
               take: ITEMS_PER_PAGE,
@@ -77,19 +72,15 @@ const RecentProjectsPage = () => {
           }
         },
         updateQuery: (prev, { fetchMoreResult }) => {
-          console.log("updateQuery called");
           if (!fetchMoreResult?.projectsGet) {
-            console.log("updateQuery: No fetchMoreResult data");
             setHasPotentiallyMoreData(false); 
             return prev;
           }
 
           const prevProjects = prev.projectsGet?.projects || [];
           const newProjects = fetchMoreResult.projectsGet.projects || [];
-          console.log(`updateQuery: Merging ${prevProjects.length} (prev) + ${newProjects.length} (new)`);
           
           if (newProjects.length < ITEMS_PER_PAGE) {
-            console.log(`updateQuery: Fetched ${newProjects.length} items, setting hasPotentiallyMoreData to false.`);
             setHasPotentiallyMoreData(false);
           } else {
             setHasPotentiallyMoreData(true);
@@ -99,9 +90,6 @@ const RecentProjectsPage = () => {
           const uniqueProjects = Array.from(
             new Map(combinedProjects.map(p => [p.id, p])).values()
           );
-          if(uniqueProjects.length < combinedProjects.length) {
-            console.warn("updateQuery: Duplicates detected. Ensure backend cursor logic is robust.");
-          }
 
           return {
             projectsGet: {
@@ -113,21 +101,19 @@ const RecentProjectsPage = () => {
       });
     } catch (err) {
       console.error("Failed to fetch more projects:", err);
-      setHasPotentiallyMoreData(false); 
+      setHasPotentiallyMoreData(false);
     } finally {
-      console.log("Fetch more finished (finally). Resetting isFetchingMore flag.");
       isFetchingMore.current = false;
     }
   };
 
   useEffect(() => {
     if (initialLoadComplete.current && loadMoreInView) {
-      console.log("FetchMore Effect triggered by scroll.");
-      loadMoreProjects(); 
+      loadMoreProjects();
     }
   }, [loadMoreInView, initialLoadComplete.current]);
 
-   const filteredProjects: ProjectFieldsFragment[] = projectsData.filter(project => {
+  const filteredProjects: ProjectFieldsFragment[] = projectsData.filter(project => {
     const lowercaseQuery = searchQuery.toLowerCase().trim();
     if (lowercaseQuery === "") return true;
     return (
@@ -149,7 +135,7 @@ const RecentProjectsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Compliance Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">In Review Projects</h1>
         <div className="relative w-64">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -162,14 +148,12 @@ const RecentProjectsPage = () => {
       </div>
 
       <div>
-        {/* Update title */}
         <h2 className="text-xl font-semibold mb-4">
-          Recent Projects ({loading && renderedProjectCount === null ? 'Loading...' : renderedProjectCount ?? 0})
+          Projects In Review ({loading && renderedProjectCount === null ? 'Loading...' : renderedProjectCount ?? 0})
         </h2>
         {error && (
           <p className="text-red-500">Error loading projects: {error.message}</p>
         )}
-
         {loading && projectsData.length === 0 ? (
           <div className="rounded-md border p-4 space-y-3">
             {[...Array(5)].map((_, i) => (
@@ -177,11 +161,8 @@ const RecentProjectsPage = () => {
                 <Skeleton className="h-10 w-[200px]" />
                 <Skeleton className="h-10 w-[100px]" />
                 <Skeleton className="h-10 w-[120px]" />
-                <Skeleton className="h-10 w-[200px]" />
-                <Skeleton className="h-10 w-[200px]" />
                 <Skeleton className="h-10 w-[120px]" />
-                <Skeleton className="h-10 w-[100px]" />
-                <Skeleton className="h-10 w-[50px]" />
+                <Skeleton className="h-10 w-[80px]" />
               </div>
             ))}
           </div>
@@ -189,34 +170,25 @@ const RecentProjectsPage = () => {
           <ProjectsTable 
             projects={filteredProjects}
             onRenderedCountChange={handleRenderedCountChange}
-            disableReviewedFilter={true} // Add this prop
+            disableReviewedFilter={true} // Show all in-review projects, don't filter by reviewed status
+            showReviewStatus={true} // Show latest review status instead of project status
           />
         )}
-
-        <div ref={loadMoreRef} style={{ height: '10px' }} />
-
-        {(loading || isFetchingMore.current) && projectsData.length > 0 && (
-           <p className="text-center text-muted-foreground py-4">Loading more...</p>
-        )}
-
-        {!loading && !isFetchingMore.current && hasPotentiallyMoreData && projectsData.length > 0 && (
-          <div className="text-center py-4">
-            <Button 
-              onClick={loadMoreProjects}
-              disabled={loading || isFetchingMore.current}
-            >
-              Load older projects
-            </Button>
+        
+        {/* Load more trigger */}
+        {hasPotentiallyMoreData && projectsData.length > 0 && (
+          <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+            {isFetchingMore.current && (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                <span className="text-sm text-muted-foreground">Loading more projects...</span>
+              </div>
+            )}
           </div>
         )}
-
-         {!loading && !isFetchingMore.current && !hasPotentiallyMoreData && projectsData.length > 0 && (
-           <p className="text-center text-muted-foreground py-4">No more projects to load.</p>
-         )}
       </div>
     </div>
   );
 };
 
-// Update export
-export default RecentProjectsPage; 
+export default InReviewPage; 

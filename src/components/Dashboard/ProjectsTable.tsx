@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Table, 
   TableBody, 
@@ -7,24 +8,26 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   ProjectStatus, 
   ProjectFieldsFragment,
-  useProjectCloseMutation, 
-  useProjectPutInReviewMutation,
-  useProjectStatusUpdateMutation
+  useProjectReviewSubmitMutation,
+  useProjectStatusUpdateMutation,
+  ProjectReviewStatusInput,
+  ProjectReviewStatus,
+  RejectionReason,
+  ProjectFundingStrategy
 } from "@/types/generated/graphql";
-import ProjectStatusReasonModal from "./ProjectStatusReasonModal";
-import { ExternalLink, Star, Check, Copy } from "lucide-react";
+import ProjectReviewModal from "./ProjectReviewModal";
+import { ExternalLink, Star, Copy, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const LOCAL_STORAGE_WATCHLIST_KEY = "dashboardWatchlist";
@@ -70,11 +73,6 @@ const formatDate = (dateString: string | null | undefined): string => {
 
   // Check if parsing resulted in a valid number
   if (isNaN(numericTimestamp)) {
-    // Optional: Try parsing as a date string directly as a fallback?
-    // const dateObjFromString = new Date(dateString);
-    // if (!isNaN(dateObjFromString.getTime())) {
-    //   return dateObjFromString.toLocaleDateString();
-    // }
     return 'Invalid Date';
   }
 
@@ -84,7 +82,6 @@ const formatDate = (dateString: string | null | undefined): string => {
     
     // Check if the date object is valid (it should be if numericTimestamp was valid)
     if (isNaN(dateObj.getTime())) {
-      // This case should be less likely now but kept as a safeguard
       console.error("Invalid date object created from timestamp:", numericTimestamp);
       return 'Invalid Date'; 
     }
@@ -99,24 +96,25 @@ interface ProjectsTableProps {
   projects: ProjectFieldsFragment[];
   onRenderedCountChange?: (count: number) => void;
   disableReviewedFilter?: boolean;
+  showReviewStatus?: boolean; // If true, show latest review status instead of project status
 }
 
 interface ModalState {
   isOpen: boolean;
   projectId: string | null;
-  intendedStatus: ProjectStatus.InReview | ProjectStatus.Closed | ProjectStatus.Draft | ProjectStatus.Active | ProjectStatus.PreLaunch | null;
 }
 
 const ProjectsTable = ({ 
   projects, 
   onRenderedCountChange, 
-  disableReviewedFilter = false
+  disableReviewedFilter = false,
+  showReviewStatus = false
 }: ProjectsTableProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [modalState, setModalState] = useState<ModalState>({ 
     isOpen: false, 
-    projectId: null, 
-    intendedStatus: null 
+    projectId: null
   });
   // Local state to track the current watchlist IDs
   const [watchlist, setWatchlist] = useState<string[]>([]); 
@@ -129,9 +127,7 @@ const ProjectsTable = ({
     setReviewedProjects(getReviewedProjects());
   }, []);
 
-  const [putInReviewMutate, { loading: putInReviewLoading }] = useProjectPutInReviewMutation();
-  const [closeMutate, { loading: closeLoading }] = useProjectCloseMutation();
-  const [statusUpdateMutate, { loading: statusUpdateLoading }] = useProjectStatusUpdateMutation();
+  const [reviewSubmitMutate, { loading: reviewSubmitLoading }] = useProjectReviewSubmitMutation();
 
   const handleWatchlistToggle = (projectId: string) => {
     const currentWatchlist = getWatchlist();
@@ -180,79 +176,44 @@ const ProjectsTable = ({
     }
   };
 
-  // New handler for un-marking a project as reviewed
-  const handleUnreviewProject = (projectId: string) => {
-    const currentReviewed = getReviewedProjects();
-    if (currentReviewed.includes(projectId)) {
-      const updatedReviewed = currentReviewed.filter(id => id !== projectId);
-      saveReviewedProjects(updatedReviewed);
-      setReviewedProjects(updatedReviewed); // Update local state
-    }
-  };
-
-  const handleStatusChangeRequest = (project: ProjectFieldsFragment, newStatusValue: string) => {
-    let intendedStatus: ProjectStatus.InReview | ProjectStatus.Closed | ProjectStatus.Draft | ProjectStatus.Active | ProjectStatus.PreLaunch | null = null;
-
-    switch (newStatusValue) {
-      case "in-review":
-        intendedStatus = ProjectStatus.InReview;
-        break;
-      case "closed":
-        intendedStatus = ProjectStatus.Closed;
-        break;
-      case "draft":
-        intendedStatus = ProjectStatus.Draft;
-        break;
-      case "active":
-        intendedStatus = ProjectStatus.Active;
-        break;
-      case "prelaunch":
-        intendedStatus = ProjectStatus.PreLaunch;
-        break;
-      default:
-        // It should not reach here if SelectItems are correctly set
-        console.error("Invalid status value:", newStatusValue);
-        return;
-    }
-      
+  const handleSubmitReview = (projectId: string) => {
     setModalState({
       isOpen: true,
-      projectId: project.id,
-      intendedStatus: intendedStatus
+      projectId: projectId
     });
   };
 
-  const handleModalConfirm = async (
-    projectId: string, 
-    reason: string,
-    status: ProjectStatus.InReview | ProjectStatus.Closed | ProjectStatus.Draft | ProjectStatus.Active | ProjectStatus.PreLaunch
+  const handleReviewSubmit = async (
+    projectId: string,
+    reviewStatus: ProjectReviewStatusInput,
+    rejectionReasons?: RejectionReason[],
+    reviewNotes?: string
   ) => {
     try {
-      let result;
-      let updatedProjectData = null;
+      const result = await reviewSubmitMutate({ 
+        variables: { 
+          input: { 
+            projectId, 
+            status: reviewStatus,
+            rejectionReasons: rejectionReasons && rejectionReasons.length > 0 ? rejectionReasons : undefined,
+            reviewNotes: reviewNotes
+          } 
+        } 
+      });
 
-      if (status === ProjectStatus.InReview) {
-        result = await putInReviewMutate({ variables: { input: { projectId, reason } } });
-        updatedProjectData = result.data?.projectPutInReview;
-      } else if (status === ProjectStatus.Closed) {
-        result = await closeMutate({ variables: { input: { projectId, reason } } });
-        updatedProjectData = result.data?.projectClose;
-      } else if (status === ProjectStatus.Draft || status === ProjectStatus.Active || status === ProjectStatus.PreLaunch) {
-        result = await statusUpdateMutate({ variables: { input: { projectId, status } } });
-        // Assuming projectStatusUpdate returns a similar structure
-        updatedProjectData = result.data?.projectStatusUpdate;
-      }
+      // Automatically mark the project as reviewed when review is successfully submitted
+      handleMarkAsReviewed(projectId);
 
       toast({
-        title: "Status updated successfully",
-        description: `Project ${updatedProjectData?.id || projectId} has been marked as ${status}.`,
+        title: "Review submitted successfully",
+        description: `Project ${projectId} review has been submitted with status ${reviewStatus}.`,
       });
-      setModalState({ isOpen: false, projectId: null, intendedStatus: null });
+      setModalState({ isOpen: false, projectId: null });
 
     } catch (error) {
-      console.error("Failed to update project status:", error);
+      console.error("Failed to submit review:", error);
       toast({
-        title: "Error updating status",
+        title: "Error submitting review",
         description: error instanceof Error ? error.message : "An unknown error occurred.",
         variant: "destructive",
       });
@@ -275,22 +236,72 @@ const ProjectsTable = ({
          return <Badge variant="outline">Inactive</Badge>;
        case ProjectStatus.PreLaunch:
           return <Badge className="status-prelaunch">Pre-launch</Badge>;
+        case ProjectStatus.Accepted:
+          return <Badge className="status-accepted">Accepted</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
   };
 
-  const getSelectValueFromStatus = (status: ProjectStatus | null | undefined): string => {
-    if (status === ProjectStatus.InReview) return 'in-review';
-    if (status === ProjectStatus.Closed) return 'closed';
-    if (status === ProjectStatus.Draft) return 'draft';
-    if (status === ProjectStatus.Active) return 'active';
-    if (status === ProjectStatus.PreLaunch) return 'prelaunch';
-    return ''; 
-  };
-
   const getProjectUrl = (projectName: string | null | undefined): string => {
     return projectName ? `https://geyser.fund/project/${projectName}` : '#'; 
+  };
+
+// Helper to format funding strategy enum to a human-friendly label
+const formatFundingStrategy = (
+  strategy: ProjectFundingStrategy | null | undefined
+): string => {
+  if (!strategy) return '-';
+  switch (strategy) {
+    case ProjectFundingStrategy.AllOrNothing:
+      return 'All or Nothing';
+    case ProjectFundingStrategy.TakeItAll:
+      return 'Take It All';
+    default:
+      return String(strategy);
+  }
+};
+
+  // Helper function to get the latest review for a project
+  const getLatestReview = (project: ProjectFieldsFragment) => {
+    if (!project.reviews || project.reviews.length === 0) return null;
+    
+    // Sort reviews by createdAt descending to get the latest one
+    const sortedReviews = [...project.reviews].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    
+    return sortedReviews[0];
+  };
+
+  // Helper function to get review status badge
+  const getReviewStatusBadge = (status: ProjectReviewStatus | null | undefined) => {
+    switch (status) {
+      case ProjectReviewStatus.Accepted:
+        return <Badge className="status-approved">Accepted</Badge>;
+      case ProjectReviewStatus.Rejected:
+        return <Badge className="status-rejected">Rejected</Badge>;
+      case ProjectReviewStatus.RevisionsRequested:
+        return <Badge className="status-pending">Revisions Requested</Badge>;
+      case ProjectReviewStatus.Pending:
+        return <Badge className="status-pending">Pending</Badge>;
+      default:
+        return <Badge variant="outline">No Review</Badge>;
+    }
+  };
+
+  // Helper function to determine if submit review should be disabled
+  const isSubmitReviewDisabled = (project: ProjectFieldsFragment): { disabled: boolean; reason?: string } => {
+    if (!showReviewStatus) return { disabled: false };
+    
+    const latestReview = getLatestReview(project);
+    if (!latestReview) return { disabled: false };
+    
+    if (latestReview.status === ProjectReviewStatus.RevisionsRequested) {
+      return { disabled: true, reason: "Creator action required" };
+    }
+    
+    return { disabled: false };
   };
 
   // Filter projects *before* rendering, conditionally skipping the reviewed filter
@@ -305,6 +316,15 @@ const ProjectsTable = ({
     }
   }, [visibleProjects.length, onRenderedCountChange]);
 
+  const handleRowClick = (projectId: string) => {
+    navigate(`/dashboard/project/${projectId}`);
+  };
+
+  const handleButtonClick = (e: React.MouseEvent) => {
+    // Prevent row click when clicking buttons
+    e.stopPropagation();
+  };
+
   return (
     <>
       <div className="rounded-md border">
@@ -313,57 +333,41 @@ const ProjectsTable = ({
             <TableRow>
               <TableHead className="w-[250px]">Project Title</TableHead>
               <TableHead className="w-[120px]">Status</TableHead>
-              <TableHead className="w-[200px]">Mark As</TableHead>
-              <TableHead className="w-[150px]">Rejection Reason</TableHead>
+              <TableHead className="w-[150px]">Funding</TableHead>
               <TableHead className="w-[150px]">Created On</TableHead>
               <TableHead className="w-[50px]">URL</TableHead>
               <TableHead className="w-[80px]">Watchlist</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
               <TableHead className="w-[80px]">Copy Email</TableHead>
+              <TableHead className="w-[120px]">Submit Review</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleProjects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   {projects.length > 0 ? "All recent projects marked as reviewed or none match filter" : "No projects found"}
                 </TableCell>
               </TableRow>
             ) : (
               visibleProjects.map((project) => {
                 const isWatchlisted = watchlist.includes(project.id);
-                const isReviewed = reviewedProjects.includes(project.id);
+                const latestReview = getLatestReview(project);
+                const submitReviewState = isSubmitReviewDisabled(project);
 
                 return (
-                  <TableRow key={project.id}>
+                  <TableRow 
+                    key={project.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleRowClick(project.id)}
+                  >
                     <TableCell className="font-medium">{project.title}</TableCell>
-                    <TableCell>{getStatusBadge(project.status)}</TableCell>
                     <TableCell>
-                      <Select
-                        onValueChange={(value) => handleStatusChangeRequest(project, value)}
-                        value={getSelectValueFromStatus(project.status)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Change status..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="in-review">In Review</SelectItem>
-                          <SelectItem value="closed">Closed</SelectItem>
-                          {!project.preLaunchedAt && !project.launchedAt && (
-                            <SelectItem value="draft">Draft</SelectItem>
-                          )}
-                          {project.preLaunchedAt && !project.launchedAt && (
-                            <SelectItem value="prelaunch">Prelaunch</SelectItem>
-                          )}
-                          {project.launchedAt && (
-                            <SelectItem value="active">Active</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
+                      {showReviewStatus 
+                        ? getReviewStatusBadge(latestReview?.status) 
+                        : getStatusBadge(project.status)
+                      }
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {project.rejectionReason || '-'}
-                    </TableCell>
+                    <TableCell>{formatFundingStrategy(project.fundingStrategy)}</TableCell>
                     <TableCell>{formatDate(project.createdAt)}</TableCell>
                     <TableCell>
                       <a 
@@ -371,6 +375,7 @@ const ProjectsTable = ({
                         target="_blank" 
                         rel="noreferrer"
                         className="text-blue-500 hover:text-blue-700"
+                        onClick={handleButtonClick}
                       >
                         <ExternalLink className="h-4 w-4" />
                       </a>
@@ -379,48 +384,67 @@ const ProjectsTable = ({
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={() => handleWatchlistToggle(project.id)}
+                        onClick={(e) => {
+                          handleButtonClick(e);
+                          handleWatchlistToggle(project.id);
+                        }}
                         aria-label={isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
                       >
                         <Star className={`h-4 w-4 ${isWatchlisted ? 'fill-current text-yellow-500' : 'text-muted-foreground'}`} />
                       </Button>
                     </TableCell>
                     <TableCell>
-                      {isReviewed ? (
-                        <div className="group relative">
-                          <Button 
-                            variant="link" 
-                            size="sm" 
-                            onClick={() => handleUnreviewProject(project.id)}
-                            className="text-muted-foreground hover:text-foreground p-0 h-auto no-underline hover:no-underline"
-                            aria-label="Mark as not reviewed"
-                          >
-                            <span className="group-hover:hidden">Reviewed</span>
-                            <span className="hidden group-hover:inline text-red-600">Unreview</span>
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleMarkAsReviewed(project.id)}
-                          aria-label="Mark as reviewed"
-                          className="flex items-center gap-1"
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </TableCell>
-                    <TableCell>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleCopyEmail(project.owners?.[0]?.user?.email)}
+                        onClick={(e) => {
+                          handleButtonClick(e);
+                          handleCopyEmail(project.owners?.[0]?.user?.email);
+                        }}
                         aria-label="Copy owner's email"
                         disabled={!project.owners?.[0]?.user?.email}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
+                    </TableCell>
+                    <TableCell>
+                      {submitReviewState.disabled ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span onClick={handleButtonClick}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={true}
+                                  aria-label="Submit review for project (disabled)"
+                                  className="flex items-center gap-1"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  Review
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{submitReviewState.reason}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            handleButtonClick(e);
+                            handleSubmitReview(project.id);
+                          }}
+                          aria-label="Submit review for project"
+                          className="flex items-center gap-1"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Review
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -430,13 +454,12 @@ const ProjectsTable = ({
         </Table>
       </div>
 
-      <ProjectStatusReasonModal
+      <ProjectReviewModal
         isOpen={modalState.isOpen}
         onOpenChange={(open) => setModalState({ ...modalState, isOpen: open })}
         projectId={modalState.projectId || ''}
-        intendedStatus={modalState.intendedStatus || ProjectStatus.InReview}
-        onConfirm={handleModalConfirm}
-        isLoading={putInReviewLoading || closeLoading || statusUpdateLoading}
+        onSubmit={handleReviewSubmit}
+        isLoading={reviewSubmitLoading}
       />
     </>
   );

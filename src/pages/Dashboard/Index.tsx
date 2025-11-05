@@ -37,7 +37,13 @@ const DashboardPage = () => {
   const { data, loading, error, fetchMore } = useProjectsGetQuery({
     variables: {
       input: {
-        where: { statuses: [ProjectStatus.Active, ProjectStatus.Inactive, ProjectStatus.PreLaunch, ProjectStatus.Closed]},
+        where: { statuses: [
+          ProjectStatus.Active,
+          ProjectStatus.Inactive,
+          ProjectStatus.PreLaunch,
+          ProjectStatus.Closed,
+          ProjectStatus.InReview,
+        ]},
         orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
         pagination: { take: ITEMS_PER_PAGE }
       }
@@ -199,6 +205,7 @@ const DashboardPage = () => {
               <div key={i} className="flex space-x-4">
                 <Skeleton className="h-10 w-[200px]" />
                 <Skeleton className="h-10 w-[100px]" />
+                <Skeleton className="h-10 w-[120px]" />
                 <Skeleton className="h-10 w-[200px]" />
                 <Skeleton className="h-10 w-[200px]" />
                 <Skeleton className="h-10 w-[120px]" />

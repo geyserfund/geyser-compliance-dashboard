@@ -6,7 +6,8 @@ import {
   Table, 
   Search, 
   List, 
-  Bell 
+  Bell,
+  Eye
 } from "lucide-react";
 
 const DashboardLayout = () => {
@@ -50,6 +51,20 @@ const DashboardLayout = () => {
           >
             <Table size={20} />
             {!isSidebarCollapsed && <span className="ml-3">Unreviewed Projects</span>}
+          </NavLink>
+          
+          <NavLink 
+            to="/dashboard/in-review"
+            className={({ isActive }) => 
+              `flex items-center px-4 py-3 transition-colors ${
+                isActive 
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                  : "hover:bg-sidebar-accent/50"
+              }`
+            }
+          >
+            <Eye size={20} />
+            {!isSidebarCollapsed && <span className="ml-3">In Review</span>}
           </NavLink>
           
           <NavLink 

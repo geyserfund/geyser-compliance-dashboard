@@ -1,0 +1,616 @@
+---
+alwaysApply: false
+---
+
+# Dashboard Navigation & Page Structure
+
+## Overview
+Patterns for adding new dashboard pages, updating navigation, and maintaining consistent page structure across the compliance dashboard.
+
+## 1. Adding New Dashboard Pages
+
+### Step-by-Step Process
+
+#### Step 1: Create Page Component
+- **Location**: [`src/pages/Dashboard/`](src/pages/Dashboard/)
+- **Naming**: Use PascalCase with descriptive names (e.g., `InReview.tsx`, `RecentProjects.tsx`)
+- **Structure**: Follow existing page patterns
+
+```typescript
+// Template for new dashboard pages
+import { useState, useEffect, useRef } from "react";
+import { Input } from "@/components/ui/input";
+import { 
+  useProjectsGetQuery, 
+  ProjectFieldsFragment,
+  OrderByDirection, 
+  ProjectsOrderByField,
+  ProjectStatus
+} from "@/types/generated/graphql";
+import ProjectsTable from "@/components/Dashboard/ProjectsTable";
+import { Search } from "lucide-react";
+import { useInView } from 'react-intersection-observer';
+import { Skeleton } from "@/components/ui/skeleton";
+
+const ITEMS_PER_PAGE = 20;
+
+const NewDashboardPage = () => {
+  // Standard page state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [renderedProjectCount, setRenderedProjectCount] = useState<number | null>(null);
+  
+  // Infinite scroll state
+  const isFetchingMore = useRef(false);
+  const initialLoadComplete = useRef(false);
+  const [hasPotentiallyMoreData, setHasPotentiallyMoreData] = useState(true);
+
+  // Standard query pattern
+  const { data, loading, error, fetchMore } = useProjectsGetQuery({
+    variables: {
+      input: {
+        where: { /* page-specific filters */ },
+        orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
+        pagination: { take: ITEMS_PER_PAGE }
+      }
+    },
+    // ... query options
+  });
+
+  // Standard page structure
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold tracking-tight">Page Title</h1>
+        <div className="relative w-64">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search..."
+            className="pl-8"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-semibold mb-4">
+          Subtitle ({loading && renderedProjectCount === null ? 'Loading...' : renderedProjectCount ?? 0})
+        </h2>
+        {/* Error handling */}
+        {/* Loading skeleton */}
+        {/* ProjectsTable */}
+        {/* Infinite scroll trigger */}
+      </div>
+    </div>
+  );
+};
+
+export default NewDashboardPage;
+```
+
+#### Step 2: Update Navigation
+- **File**: [`src/components/Dashboard/Layout.tsx`](src/components/Dashboard/Layout.tsx)
+- **Add Import**: Import appropriate icon from `lucide-react`
+- **Add NavLink**: Follow existing pattern
+
+```typescript
+// Add icon import
+import { Table, Search, List, Bell, Eye, NewIcon } from "lucide-react";
+
+// Add navigation link in logical order
+<NavLink 
+  to="/dashboard/new-page"
+  className={({ isActive }) => 
+    `flex items-center px-4 py-3 transition-colors ${
+      isActive 
+        ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+        : "hover:bg-sidebar-accent/50"
+    }`
+  }
+>
+  <NewIcon size={20} />
+  {!isSidebarCollapsed && <span className="ml-3">New Page</span>}
+</NavLink>
+```
+
+#### Step 3: Update Routing
+- **File**: [`src/App.tsx`](src/App.tsx)
+- **Add Import**: Import new page component
+- **Add Route**: Add route within dashboard layout
+
+```typescript
+// Add import
+import NewDashboardPage from "./pages/Dashboard/NewPage";
+
+// Add route in logical order
+<Route path="/dashboard" element={
+  <ProtectedRoute>
+    <DashboardLayout />
+  </ProtectedRoute>
+}>
+  <Route index element={<DashboardIndex />} />
+  <Route path="new-page" element={<NewDashboardPage />} />
+  <Route path="existing-page" element={<ExistingPage />} />
+</Route>
+```
+
+## 2. Navigation Best Practices
+
+### Icon Selection
+- Use meaningful icons from `lucide-react`
+- Keep icon meanings consistent across the app
+- Common patterns:
+  - `Table`: Unreviewed/main data views
+  - `Eye`: In review/monitoring views  
+  - `List`: Recent/historical views
+  - `Bell`: Watchlist/favorites
+  - `Search`: Search functionality
+
+### URL Structure
+- Use kebab-case for URLs: `/dashboard/in-review`
+- Keep URLs descriptive but concise
+- Maintain logical hierarchy
+- Consider future scalability
+
+### Navigation Order
+Organize navigation links by user workflow:
+1. **Primary Actions**: Main data views users work with most
+2. **Review States**: Different stages of the review process
+3. **Secondary Views**: Historical data, search, etc.
+4. **Personal**: Watchlists, preferences
+
+## 3. Page Data Fetching Patterns
+
+### Query Configuration
+Standard query pattern for dashboard pages:
+
+```typescript
+const { data, loading, error, fetchMore } = useProjectsGetQuery({
+  variables: {
+    input: {
+      where: { 
+        // Page-specific filters
+        statuses: [ProjectStatus.InReview], // Example
+      },
+      orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
+      pagination: { take: ITEMS_PER_PAGE }
+    }
+  },
+  notifyOnNetworkStatusChange: true,
+  onCompleted: (completedData) => {
+    initialLoadComplete.current = true;
+    const initialCount = completedData.projectsGet?.projects?.length ?? 0;
+    if (initialCount < ITEMS_PER_PAGE) {
+      setHasPotentiallyMoreData(false);
+    }
+  },
+});
+```
+
+### Infinite Scroll Implementation
+Use consistent infinite scroll pattern:
+
+```typescript
+// Scroll detection
+const { ref: loadMoreRef, inView: loadMoreInView } = useInView({
+  threshold: 0,
+  rootMargin: '200px',
+});
+
+// Load more function
+const loadMoreProjects = async () => {
+  if (loading || isFetchingMore.current || !hasPotentiallyMoreData || !fetchMore) {
+    return;
+  }
+  // ... implementation
+};
+
+// Effect to trigger loading
+useEffect(() => {
+  if (initialLoadComplete.current && loadMoreInView) {
+    loadMoreProjects();
+  }
+}, [loadMoreInView, initialLoadComplete.current]);
+```
+
+## 4. Table Configuration Patterns
+
+### Page-Specific Table Props
+Different pages may need different table configurations:
+
+```typescript
+// Unreviewed Projects (default behavior)
+<ProjectsTable 
+  projects={filteredProjects}
+  onRenderedCountChange={handleRenderedCountChange}
+/>
+
+// In Review Projects (show review status)
+<ProjectsTable 
+  projects={filteredProjects}
+  onRenderedCountChange={handleRenderedCountChange}
+  disableReviewedFilter={true}
+  showReviewStatus={true}
+/>
+
+// Recent Projects (show all, no filtering)
+<ProjectsTable 
+  projects={filteredProjects}
+  onRenderedCountChange={handleRenderedCountChange}
+  disableReviewedFilter={true}
+/>
+```
+
+### Prop Patterns
+- `disableReviewedFilter`: Show all projects regardless of reviewed status
+- `showReviewStatus`: Display latest review status instead of project status
+- `onRenderedCountChange`: Callback for updating count displays
+
+## 5. Consistent Page Elements
+
+### Header Structure
+Every dashboard page should have:
+1. **Main Title**: `h1` with `text-3xl font-bold tracking-tight`
+2. **Search Input**: Positioned on the right side
+3. **Subtitle with Count**: `h2` with dynamic count display
+
+### Loading States
+Consistent loading skeleton:
+
+```typescript
+{loading && projectsData.length === 0 ? (
+  <div className="rounded-md border p-4 space-y-3">
+    {[...Array(5)].map((_, i) => (
+      <div key={i} className="flex space-x-4">
+        <Skeleton className="h-10 w-[200px]" />
+        <Skeleton className="h-10 w-[100px]" />
+        <Skeleton className="h-10 w-[120px]" />
+        <Skeleton className="h-10 w-[80px]" />
+      </div>
+    ))}
+  </div>
+) : (
+  // Content
+)}
+```
+
+### Error Handling
+Standard error display:
+
+```typescript
+{error && (
+  <p className="text-red-500">Error loading projects: {error.message}</p>
+)}
+```
+
+## 6. Testing New Pages
+
+### Verification Checklist
+- [ ] Page renders without errors
+- [ ] Navigation link highlights correctly when active
+- [ ] Search functionality works
+- [ ] Infinite scroll works (if applicable)  
+- [ ] Loading states display correctly
+- [ ] Error states handle gracefully
+- [ ] Count displays update properly
+- [ ] Table functionality works as expected
+- [ ] Mobile responsiveness maintained
+
+### Build Testing
+Always test the build after adding new pages:
+
+```bash
+docker exec -ti geyser-compliance-dashboard bun run build
+```
+
+## Common Files Modified
+When adding a new dashboard page, you typically modify:
+- [`src/pages/Dashboard/NewPage.tsx`](src/pages/Dashboard/) - New page component
+- [`src/components/Dashboard/Layout.tsx`](src/components/Dashboard/Layout.tsx) - Navigation
+- [`src/App.tsx`](src/App.tsx) - Routing
+# Dashboard Navigation & Page Structure
+
+## Overview
+Patterns for adding new dashboard pages, updating navigation, and maintaining consistent page structure across the compliance dashboard.
+
+## 1. Adding New Dashboard Pages
+
+### Step-by-Step Process
+
+#### Step 1: Create Page Component
+- **Location**: [`src/pages/Dashboard/`](src/pages/Dashboard/)
+- **Naming**: Use PascalCase with descriptive names (e.g., `InReview.tsx`, `RecentProjects.tsx`)
+- **Structure**: Follow existing page patterns
+
+```typescript
+// Template for new dashboard pages
+import { useState, useEffect, useRef } from "react";
+import { Input } from "@/components/ui/input";
+import { 
+  useProjectsGetQuery, 
+  ProjectFieldsFragment,
+  OrderByDirection, 
+  ProjectsOrderByField,
+  ProjectStatus
+} from "@/types/generated/graphql";
+import ProjectsTable from "@/components/Dashboard/ProjectsTable";
+import { Search } from "lucide-react";
+import { useInView } from 'react-intersection-observer';
+import { Skeleton } from "@/components/ui/skeleton";
+
+const ITEMS_PER_PAGE = 20;
+
+const NewDashboardPage = () => {
+  // Standard page state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [renderedProjectCount, setRenderedProjectCount] = useState<number | null>(null);
+  
+  // Infinite scroll state
+  const isFetchingMore = useRef(false);
+  const initialLoadComplete = useRef(false);
+  const [hasPotentiallyMoreData, setHasPotentiallyMoreData] = useState(true);
+
+  // Standard query pattern
+  const { data, loading, error, fetchMore } = useProjectsGetQuery({
+    variables: {
+      input: {
+        where: { /* page-specific filters */ },
+        orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
+        pagination: { take: ITEMS_PER_PAGE }
+      }
+    },
+    // ... query options
+  });
+
+  // Standard page structure
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold tracking-tight">Page Title</h1>
+        <div className="relative w-64">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search..."
+            className="pl-8"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-semibold mb-4">
+          Subtitle ({loading && renderedProjectCount === null ? 'Loading...' : renderedProjectCount ?? 0})
+        </h2>
+        {/* Error handling */}
+        {/* Loading skeleton */}
+        {/* ProjectsTable */}
+        {/* Infinite scroll trigger */}
+      </div>
+    </div>
+  );
+};
+
+export default NewDashboardPage;
+```
+
+#### Step 2: Update Navigation
+- **File**: [`src/components/Dashboard/Layout.tsx`](src/components/Dashboard/Layout.tsx)
+- **Add Import**: Import appropriate icon from `lucide-react`
+- **Add NavLink**: Follow existing pattern
+
+```typescript
+// Add icon import
+import { Table, Search, List, Bell, Eye, NewIcon } from "lucide-react";
+
+// Add navigation link in logical order
+<NavLink 
+  to="/dashboard/new-page"
+  className={({ isActive }) => 
+    `flex items-center px-4 py-3 transition-colors ${
+      isActive 
+        ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+        : "hover:bg-sidebar-accent/50"
+    }`
+  }
+>
+  <NewIcon size={20} />
+  {!isSidebarCollapsed && <span className="ml-3">New Page</span>}
+</NavLink>
+```
+
+#### Step 3: Update Routing
+- **File**: [`src/App.tsx`](src/App.tsx)
+- **Add Import**: Import new page component
+- **Add Route**: Add route within dashboard layout
+
+```typescript
+// Add import
+import NewDashboardPage from "./pages/Dashboard/NewPage";
+
+// Add route in logical order
+<Route path="/dashboard" element={
+  <ProtectedRoute>
+    <DashboardLayout />
+  </ProtectedRoute>
+}>
+  <Route index element={<DashboardIndex />} />
+  <Route path="new-page" element={<NewDashboardPage />} />
+  <Route path="existing-page" element={<ExistingPage />} />
+</Route>
+```
+
+## 2. Navigation Best Practices
+
+### Icon Selection
+- Use meaningful icons from `lucide-react`
+- Keep icon meanings consistent across the app
+- Common patterns:
+  - `Table`: Unreviewed/main data views
+  - `Eye`: In review/monitoring views  
+  - `List`: Recent/historical views
+  - `Bell`: Watchlist/favorites
+  - `Search`: Search functionality
+
+### URL Structure
+- Use kebab-case for URLs: `/dashboard/in-review`
+- Keep URLs descriptive but concise
+- Maintain logical hierarchy
+- Consider future scalability
+
+### Navigation Order
+Organize navigation links by user workflow:
+1. **Primary Actions**: Main data views users work with most
+2. **Review States**: Different stages of the review process
+3. **Secondary Views**: Historical data, search, etc.
+4. **Personal**: Watchlists, preferences
+
+## 3. Page Data Fetching Patterns
+
+### Query Configuration
+Standard query pattern for dashboard pages:
+
+```typescript
+const { data, loading, error, fetchMore } = useProjectsGetQuery({
+  variables: {
+    input: {
+      where: { 
+        // Page-specific filters
+        statuses: [ProjectStatus.InReview], // Example
+      },
+      orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
+      pagination: { take: ITEMS_PER_PAGE }
+    }
+  },
+  notifyOnNetworkStatusChange: true,
+  onCompleted: (completedData) => {
+    initialLoadComplete.current = true;
+    const initialCount = completedData.projectsGet?.projects?.length ?? 0;
+    if (initialCount < ITEMS_PER_PAGE) {
+      setHasPotentiallyMoreData(false);
+    }
+  },
+});
+```
+
+### Infinite Scroll Implementation
+Use consistent infinite scroll pattern:
+
+```typescript
+// Scroll detection
+const { ref: loadMoreRef, inView: loadMoreInView } = useInView({
+  threshold: 0,
+  rootMargin: '200px',
+});
+
+// Load more function
+const loadMoreProjects = async () => {
+  if (loading || isFetchingMore.current || !hasPotentiallyMoreData || !fetchMore) {
+    return;
+  }
+  // ... implementation
+};
+
+// Effect to trigger loading
+useEffect(() => {
+  if (initialLoadComplete.current && loadMoreInView) {
+    loadMoreProjects();
+  }
+}, [loadMoreInView, initialLoadComplete.current]);
+```
+
+## 4. Table Configuration Patterns
+
+### Page-Specific Table Props
+Different pages may need different table configurations:
+
+```typescript
+// Unreviewed Projects (default behavior)
+<ProjectsTable 
+  projects={filteredProjects}
+  onRenderedCountChange={handleRenderedCountChange}
+/>
+
+// In Review Projects (show review status)
+<ProjectsTable 
+  projects={filteredProjects}
+  onRenderedCountChange={handleRenderedCountChange}
+  disableReviewedFilter={true}
+  showReviewStatus={true}
+/>
+
+// Recent Projects (show all, no filtering)
+<ProjectsTable 
+  projects={filteredProjects}
+  onRenderedCountChange={handleRenderedCountChange}
+  disableReviewedFilter={true}
+/>
+```
+
+### Prop Patterns
+- `disableReviewedFilter`: Show all projects regardless of reviewed status
+- `showReviewStatus`: Display latest review status instead of project status
+- `onRenderedCountChange`: Callback for updating count displays
+
+## 5. Consistent Page Elements
+
+### Header Structure
+Every dashboard page should have:
+1. **Main Title**: `h1` with `text-3xl font-bold tracking-tight`
+2. **Search Input**: Positioned on the right side
+3. **Subtitle with Count**: `h2` with dynamic count display
+
+### Loading States
+Consistent loading skeleton:
+
+```typescript
+{loading && projectsData.length === 0 ? (
+  <div className="rounded-md border p-4 space-y-3">
+    {[...Array(5)].map((_, i) => (
+      <div key={i} className="flex space-x-4">
+        <Skeleton className="h-10 w-[200px]" />
+        <Skeleton className="h-10 w-[100px]" />
+        <Skeleton className="h-10 w-[120px]" />
+        <Skeleton className="h-10 w-[80px]" />
+      </div>
+    ))}
+  </div>
+) : (
+  // Content
+)}
+```
+
+### Error Handling
+Standard error display:
+
+```typescript
+{error && (
+  <p className="text-red-500">Error loading projects: {error.message}</p>
+)}
+```
+
+## 6. Testing New Pages
+
+### Verification Checklist
+- [ ] Page renders without errors
+- [ ] Navigation link highlights correctly when active
+- [ ] Search functionality works
+- [ ] Infinite scroll works (if applicable)  
+- [ ] Loading states display correctly
+- [ ] Error states handle gracefully
+- [ ] Count displays update properly
+- [ ] Table functionality works as expected
+- [ ] Mobile responsiveness maintained
+
+### Build Testing
+Always test the build after adding new pages:
+
+```bash
+docker exec -ti geyser-compliance-dashboard bun run build
+```
+
+## Common Files Modified
+When adding a new dashboard page, you typically modify:
+- [`src/pages/Dashboard/NewPage.tsx`](src/pages/Dashboard/) - New page component
+- [`src/components/Dashboard/Layout.tsx`](src/components/Dashboard/Layout.tsx) - Navigation
+- [`src/App.tsx`](src/App.tsx) - Routing
