@@ -23,7 +23,8 @@ import {
   useProjectStatusUpdateMutation,
   ProjectReviewStatusInput,
   ProjectReviewStatus,
-  RejectionReason
+  RejectionReason,
+  ProjectFundingStrategy
 } from "@/types/generated/graphql";
 import ProjectReviewModal from "./ProjectReviewModal";
 import { ExternalLink, Star, Copy, FileText } from "lucide-react";
@@ -127,7 +128,6 @@ const ProjectsTable = ({
   }, []);
 
   const [reviewSubmitMutate, { loading: reviewSubmitLoading }] = useProjectReviewSubmitMutation();
-  const [statusUpdateMutate, { loading: statusUpdateLoading }] = useProjectStatusUpdateMutation();
 
   const handleWatchlistToggle = (projectId: string) => {
     const currentWatchlist = getWatchlist();
@@ -247,6 +247,21 @@ const ProjectsTable = ({
     return projectName ? `https://geyser.fund/project/${projectName}` : '#'; 
   };
 
+// Helper to format funding strategy enum to a human-friendly label
+const formatFundingStrategy = (
+  strategy: ProjectFundingStrategy | null | undefined
+): string => {
+  if (!strategy) return '-';
+  switch (strategy) {
+    case ProjectFundingStrategy.AllOrNothing:
+      return 'All or Nothing';
+    case ProjectFundingStrategy.TakeItAll:
+      return 'Take It All';
+    default:
+      return String(strategy);
+  }
+};
+
   // Helper function to get the latest review for a project
   const getLatestReview = (project: ProjectFieldsFragment) => {
     if (!project.reviews || project.reviews.length === 0) return null;
@@ -318,6 +333,7 @@ const ProjectsTable = ({
             <TableRow>
               <TableHead className="w-[250px]">Project Title</TableHead>
               <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[150px]">Funding</TableHead>
               <TableHead className="w-[150px]">Created On</TableHead>
               <TableHead className="w-[50px]">URL</TableHead>
               <TableHead className="w-[80px]">Watchlist</TableHead>
@@ -328,7 +344,7 @@ const ProjectsTable = ({
           <TableBody>
             {visibleProjects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   {projects.length > 0 ? "All recent projects marked as reviewed or none match filter" : "No projects found"}
                 </TableCell>
               </TableRow>
@@ -351,6 +367,7 @@ const ProjectsTable = ({
                         : getStatusBadge(project.status)
                       }
                     </TableCell>
+                    <TableCell>{formatFundingStrategy(project.fundingStrategy)}</TableCell>
                     <TableCell>{formatDate(project.createdAt)}</TableCell>
                     <TableCell>
                       <a 

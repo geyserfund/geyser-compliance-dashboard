@@ -205,6 +205,7 @@ const DashboardPage = () => {
               <div key={i} className="flex space-x-4">
                 <Skeleton className="h-10 w-[200px]" />
                 <Skeleton className="h-10 w-[100px]" />
+                <Skeleton className="h-10 w-[120px]" />
                 <Skeleton className="h-10 w-[200px]" />
                 <Skeleton className="h-10 w-[200px]" />
                 <Skeleton className="h-10 w-[120px]" />

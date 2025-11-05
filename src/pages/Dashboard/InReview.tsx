@@ -161,6 +161,7 @@ const InReviewPage = () => {
                 <Skeleton className="h-10 w-[200px]" />
                 <Skeleton className="h-10 w-[100px]" />
                 <Skeleton className="h-10 w-[120px]" />
+                <Skeleton className="h-10 w-[120px]" />
                 <Skeleton className="h-10 w-[80px]" />
               </div>
             ))}
