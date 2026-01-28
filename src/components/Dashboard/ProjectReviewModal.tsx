@@ -111,11 +111,11 @@ const ProjectReviewModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Submit Project Review</DialogTitle>
-          <DialogDescription>
-            Review project {projectId} and submit your decision.
+          <DialogDescription className="break-words">
+            Review project <span className="font-medium">{projectId}</span> and submit your decision.
           </DialogDescription>
         </DialogHeader>
         
@@ -133,7 +133,7 @@ const ProjectReviewModal = ({
               }}
             >
               <SelectTrigger id="review-type-select">
-                <SelectValue placeholder="Select review decision" />
+                <SelectValue placeholder="Select review decision…" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ProjectReviewStatusInput.Accepted}>
@@ -165,7 +165,9 @@ const ProjectReviewModal = ({
                 <Label htmlFor="review-notes">Review Notes (optional)</Label>
                 <Textarea
                   id="review-notes"
-                  placeholder="Add specific notes or context for the creator..."
+                  name="reviewNotes"
+                  autoComplete="off"
+                  placeholder="Add specific notes or context for the creator…"
                   value={reviewNotes}
                   onChange={(e) => setReviewNotes(e.target.value)}
                   className="min-h-[100px]"
@@ -199,7 +201,11 @@ const ProjectReviewModal = ({
               ) : (
                 <div className="space-y-3 max-h-40 overflow-y-auto border rounded-md p-3">
                   {reasons.map((reason) => (
-                    <div key={reason.key} className="flex items-start space-x-2">
+                    <label
+                      key={reason.key}
+                      htmlFor={`reason-${reason.key}`}
+                      className="flex items-start space-x-2 rounded-sm p-1 cursor-pointer hover:bg-muted/50"
+                    >
                       <Checkbox
                         id={`reason-${reason.key}`}
                         checked={selectedRejectionReasons.includes(reason.key as RejectionReason)}
@@ -207,15 +213,10 @@ const ProjectReviewModal = ({
                           handleRejectionReasonChange(reason.key as RejectionReason, checked as boolean)
                         }
                       />
-                      <div className="grid gap-1.5 leading-none">
-                        <label
-                          htmlFor={`reason-${reason.key}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          {reason.description}
-                        </label>
-                      </div>
-                    </div>
+                      <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {reason.description}
+                      </span>
+                    </label>
                   ))}
                 </div>
               )}
@@ -232,7 +233,7 @@ const ProjectReviewModal = ({
             onClick={handleSubmit} 
             disabled={!isFormValid || isLoading || (showRejectionReasons && reasonsLoading)}
           >
-            {isLoading ? 'Submitting...' : 'Submit Review'}
+            {isLoading ? 'Submitting…' : 'Submit Review'}
           </Button>
         </DialogFooter>
       </DialogContent>

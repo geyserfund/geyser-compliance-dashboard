@@ -2,39 +2,42 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import DashboardSearchInput from "@/components/Dashboard/DashboardSearchInput";
 import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
 import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
-import { 
-  useProjectsGetQuery, 
+import {
+  useProjectsGetQuery,
   ProjectFieldsFragment,
-  OrderByDirection, 
-  ProjectsOrderByField
+  OrderByDirection,
+  ProjectsOrderByField,
+  ProjectStatus,
 } from "@/types/generated/graphql";
 import { AllProjectsTable } from "@/components/Dashboard/ProjectsTable";
-import { useInView } from 'react-intersection-observer';
+import { useInView } from "react-intersection-observer";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ITEMS_PER_PAGE = 20;
 
-// Rename component
-const RecentProjectsPage = () => { 
+const AcceptedProjectsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const isFetchingMore = useRef(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [hasPotentiallyMoreData, setHasPotentiallyMoreData] = useState(true);
-  const [renderedProjectCount, setRenderedProjectCount] = useState<number | null>(null);
+  const [renderedProjectCount, setRenderedProjectCount] =
+    useState<number | null>(null);
 
   const { ref: loadMoreRef, inView: loadMoreInView } = useInView({
     threshold: 0,
-    rootMargin: '200px',
+    rootMargin: "200px",
   });
 
   const { data, loading, error, fetchMore } = useProjectsGetQuery({
     variables: {
       input: {
-        where: {},
-        orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
-        pagination: { take: ITEMS_PER_PAGE }
-      }
+        where: { statuses: [ProjectStatus.Accepted] },
+        orderBy: [
+          { field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc },
+        ],
+        pagination: { take: ITEMS_PER_PAGE },
+      },
     },
     notifyOnNetworkStatusChange: true,
     onCompleted: (completedData) => {
@@ -65,23 +68,25 @@ const RecentProjectsPage = () => {
       await fetchMore({
         variables: {
           input: {
-            where: {},
-            orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
+            where: { statuses: [ProjectStatus.Accepted] },
+            orderBy: [
+              { field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc },
+            ],
             pagination: {
               take: ITEMS_PER_PAGE,
-              ...(lastProjectId ? { cursor: { id: lastProjectId } } : {})
-            }
-          }
+              ...(lastProjectId ? { cursor: { id: lastProjectId } } : {}),
+            },
+          },
         },
         updateQuery: (prev, { fetchMoreResult }) => {
           if (!fetchMoreResult?.projectsGet) {
-            setHasPotentiallyMoreData(false); 
+            setHasPotentiallyMoreData(false);
             return prev;
           }
 
           const prevProjects = prev.projectsGet?.projects || [];
           const newProjects = fetchMoreResult.projectsGet.projects || [];
-          
+
           if (newProjects.length < ITEMS_PER_PAGE) {
             setHasPotentiallyMoreData(false);
           } else {
@@ -90,23 +95,20 @@ const RecentProjectsPage = () => {
 
           const combinedProjects = [...prevProjects, ...newProjects];
           const uniqueProjects = Array.from(
-            new Map(combinedProjects.map(p => [p.id, p])).values()
+            new Map(combinedProjects.map((p) => [p.id, p])).values()
           );
-          if(uniqueProjects.length < combinedProjects.length) {
-            console.warn("updateQuery: Duplicates detected. Ensure backend cursor logic is robust.");
-          }
 
           return {
             projectsGet: {
               __typename: prev.projectsGet?.__typename,
-              projects: uniqueProjects, 
-            }
+              projects: uniqueProjects,
+            },
           };
-        }
+        },
       });
     } catch (err) {
       console.error("Failed to fetch more projects:", err);
-      setHasPotentiallyMoreData(false); 
+      setHasPotentiallyMoreData(false);
     } finally {
       isFetchingMore.current = false;
     }
@@ -114,16 +116,17 @@ const RecentProjectsPage = () => {
 
   useEffect(() => {
     if (initialLoadComplete && loadMoreInView) {
-      void loadMoreProjects(); 
+      void loadMoreProjects();
     }
   }, [initialLoadComplete, loadMoreInView, loadMoreProjects]);
 
   const filteredProjects: ProjectFieldsFragment[] = useMemo(() => {
     const lowercaseQuery = searchQuery.toLowerCase().trim();
     if (lowercaseQuery === "") return projectsData;
-    return projectsData.filter(project =>
-      project.title.toLowerCase().includes(lowercaseQuery) ||
-      (project.name && project.name.toLowerCase().includes(lowercaseQuery))
+    return projectsData.filter(
+      (project) =>
+        project.title.toLowerCase().includes(lowercaseQuery) ||
+        (project.name && project.name.toLowerCase().includes(lowercaseQuery))
     );
   }, [projectsData, searchQuery]);
 
@@ -133,7 +136,7 @@ const RecentProjectsPage = () => {
 
   useEffect(() => {
     if (renderedProjectCount === null) {
-       setRenderedProjectCount(filteredProjects.length);
+      setRenderedProjectCount(filteredProjects.length);
     }
   }, [filteredProjects.length, renderedProjectCount]);
 
@@ -150,9 +153,8 @@ const RecentProjectsPage = () => {
       />
 
       <div>
-        {/* Update title */}
         <h2 className="text-xl font-semibold mb-4">
-          Recent Projects ({loading && renderedProjectCount === null ? 'Loading...' : renderedProjectCount ?? 0})
+          Accepted Projects ({loading && renderedProjectCount === null ? "Loading..." : renderedProjectCount ?? 0})
         </h2>
         {error && (
           <Alert variant="destructive">
@@ -161,40 +163,39 @@ const RecentProjectsPage = () => {
             </AlertDescription>
           </Alert>
         )}
-
         {loading && projectsData.length === 0 ? (
           <ProjectsTableSkeleton />
         ) : (
-          <AllProjectsTable 
+          <AllProjectsTable
             projects={filteredProjects}
             onRenderedCountChange={handleRenderedCountChange}
           />
         )}
 
-        <div ref={loadMoreRef} style={{ height: '10px' }} />
+        <div ref={loadMoreRef} style={{ height: "10px" }} />
 
         {(loading || isFetchingMore.current) && projectsData.length > 0 && (
-           <p className="text-center text-muted-foreground py-4">Loading more...</p>
+          <p className="text-center text-muted-foreground py-4">
+            Loading more...
+          </p>
         )}
 
         {!loading && !isFetchingMore.current && hasPotentiallyMoreData && projectsData.length > 0 && (
           <div className="text-center py-4">
-            <Button 
-              onClick={loadMoreProjects}
-              disabled={loading || isFetchingMore.current}
-            >
+            <Button onClick={loadMoreProjects} disabled={loading || isFetchingMore.current}>
               Load older projects
             </Button>
           </div>
         )}
 
         {!loading && !isFetchingMore.current && !hasPotentiallyMoreData && projectsData.length > 0 && (
-          <p className="text-center text-muted-foreground py-4">No more projects to load.</p>
+          <p className="text-center text-muted-foreground py-4">
+            No more projects to load.
+          </p>
         )}
       </div>
     </div>
   );
 };
 
-// Update export
-export default RecentProjectsPage; 
+export default AcceptedProjectsPage;

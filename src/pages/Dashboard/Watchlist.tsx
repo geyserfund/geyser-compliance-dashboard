@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
+import DashboardSearchInput from "@/components/Dashboard/DashboardSearchInput";
+import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
+import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
 import {
   ProjectFieldsFragment,
   useProjectsGetQuery,
   ProjectsOrderByField,
   OrderByDirection,
 } from "@/types/generated/graphql";
-import ProjectsTable from "@/components/Dashboard/ProjectsTable";
-import { Search, Bell } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AllProjectsTable } from "@/components/Dashboard/ProjectsTable";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const LOCAL_STORAGE_WATCHLIST_KEY = "dashboardWatchlist";
 
@@ -56,48 +57,33 @@ const WatchlistPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Bell className="h-6 w-6 text-yellow-500" />
-          <h1 className="text-3xl font-bold tracking-tight">Watchlist</h1>
-        </div>
-        <div className="relative w-64">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
+      <DashboardToolbar
+        right={
+          <DashboardSearchInput
             placeholder="Search watchlist..."
-            className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-        </div>
-      </div>
+        }
+      />
 
       <div>
         <h2 className="text-xl font-semibold mb-4">
             Watchlisted Projects ({loading ? 'Loading...' : filteredProjects.length})
         </h2>
         {error && (
-          <p className="text-red-500 mb-4">Error loading watchlist projects: {error.message}</p>
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>
+              Error loading watchlist projects: {error.message}
+            </AlertDescription>
+          </Alert>
         )}
         {loading && filteredProjects.length === 0 && watchlistIds.length > 0 && (
-           <div className="rounded-md border p-4 space-y-3">
-             {[...Array(3)].map((_, i) => (
-               <div key={i} className="flex space-x-4 animate-pulse">
-                 <Skeleton className="h-10 w-[250px]" />
-                 <Skeleton className="h-10 w-[120px]" />
-                 <Skeleton className="h-10 w-[200px]" />
-                 <Skeleton className="h-10 w-[150px]" />
-                 <Skeleton className="h-10 w-[150px]" />
-                 <Skeleton className="h-10 w-[50px]" />
-                 <Skeleton className="h-10 w-[80px]" />
-               </div>
-             ))}
-           </div>
+           <ProjectsTableSkeleton rows={3} />
          )}
          {(!loading || filteredProjects.length > 0) && (
-             <ProjectsTable
+             <AllProjectsTable
                projects={filteredProjects}
-               disableReviewedFilter={true}
              />
          )}
          {!loading && watchlistIds.length === 0 && (

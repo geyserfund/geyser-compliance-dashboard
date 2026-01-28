@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
+import DashboardSearchInput from "@/components/Dashboard/DashboardSearchInput";
+import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
+import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
 import { Button } from "@/components/ui/button";
 import {
   useProjectsGetQuery,
@@ -7,9 +9,8 @@ import {
   ProjectsOrderByField,
   OrderByDirection
 } from "@/types/generated/graphql";
-import ProjectsTable from "@/components/Dashboard/ProjectsTable";
-import { Search } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AllProjectsTable } from "@/components/Dashboard/ProjectsTable";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,25 +46,22 @@ const SearchPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Advanced Search</h1>
-      </div>
-
-      <div className="flex gap-3 items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by project title, name, or description..."
-            className="pl-8 py-6"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyUp={handleKeyPress}
-          />
-        </div>
-        <Button onClick={handleSearch} disabled={loading}>
-          {loading ? "Searching..." : "Search"}
-        </Button>
-      </div>
+      <DashboardToolbar
+        right={
+          <>
+            <DashboardSearchInput
+              containerClassName="w-full max-w-sm"
+              placeholder="Search by project title, name, or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyUp={handleKeyPress}
+            />
+            <Button onClick={handleSearch} disabled={loading}>
+              {loading ? "Searching..." : "Search"}
+            </Button>
+          </>
+        }
+      />
 
       {submittedQuery !== null && (
         <div>
@@ -71,29 +69,19 @@ const SearchPage = () => {
             Search Results ({loading ? 'Loading...' : searchResults.length}) for "{submittedQuery}"
           </h2>
           {error && (
-            <p className="text-red-500 mb-4">Error loading search results: {error.message}</p>
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>
+                Error loading search results: {error.message}
+              </AlertDescription>
+            </Alert>
           )}
           {loading && (
-            <div className="rounded-md border p-4 space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex space-x-4 animate-pulse">
-                  <Skeleton className="h-10 w-[250px]" />
-                  <Skeleton className="h-10 w-[120px]" />
-                  <Skeleton className="h-10 w-[150px]" />
-                  <Skeleton className="h-10 w-[200px]" />
-                  <Skeleton className="h-10 w-[150px]" />
-                  <Skeleton className="h-10 w-[150px]" />
-                  <Skeleton className="h-10 w-[50px]" />
-                  <Skeleton className="h-10 w-[80px]" />
-                </div>
-              ))}
-            </div>
+            <ProjectsTableSkeleton rows={3} />
           )}
           {!loading && (
             searchResults.length > 0 ? (
-              <ProjectsTable
+              <AllProjectsTable
                 projects={searchResults}
-                disableReviewedFilter={true}
               />
             ) : (
               <p className="text-center text-muted-foreground py-8">No projects found matching your search.</p>

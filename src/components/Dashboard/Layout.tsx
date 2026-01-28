@@ -1,134 +1,32 @@
-import { useState } from "react";
-import { Outlet, NavLink } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { 
-  Table, 
-  Search, 
-  List, 
-  Bell,
-  Eye
-} from "lucide-react";
+import { Link, Outlet } from "react-router-dom"
+import { useAuth } from "@/contexts/AuthContext"
+import { Button } from "@/components/ui/button"
+import { LogOut, ShieldCheck } from "lucide-react"
 
 const DashboardLayout = () => {
-  const { logout } = useAuth();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const { logout } = useAuth()
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <aside 
-        className={`bg-sidebar text-sidebar-foreground transition-all duration-300 ${
-          isSidebarCollapsed ? "w-16" : "w-64"
-        }`}
-      >
-        <div className="p-4 flex items-center justify-between">
-          {!isSidebarCollapsed && (
-            <span className="font-bold text-lg">Geyser Watchdog</span>
-          )}
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="text-sidebar-foreground hover:bg-sidebar-accent"
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          >
-            {isSidebarCollapsed ? "→" : "←"}
+    <div className="min-h-svh bg-background">
+      <header className="border-b">
+        <div className="flex h-14 items-center justify-between px-6">
+          <Link to="/dashboard" className="flex items-center gap-2 text-sm">
+            <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <ShieldCheck className="size-4" />
+            </span>
+            <span className="font-semibold">Geyser Watchdog</span>
+          </Link>
+          <Button variant="ghost" onClick={logout} className="gap-2">
+            <LogOut className="size-4" />
+            Sign Out
           </Button>
         </div>
-        
-        <nav className="mt-6">
-          <NavLink 
-            to="/dashboard"
-            end
-            className={({ isActive }) => 
-              `flex items-center px-4 py-3 transition-colors ${
-                isActive 
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                  : "hover:bg-sidebar-accent/50"
-              }`
-            }
-          >
-            <Table size={20} />
-            {!isSidebarCollapsed && <span className="ml-3">Unreviewed Projects</span>}
-          </NavLink>
-          
-          <NavLink 
-            to="/dashboard/in-review"
-            className={({ isActive }) => 
-              `flex items-center px-4 py-3 transition-colors ${
-                isActive 
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                  : "hover:bg-sidebar-accent/50"
-              }`
-            }
-          >
-            <Eye size={20} />
-            {!isSidebarCollapsed && <span className="ml-3">In Review</span>}
-          </NavLink>
-          
-          <NavLink 
-            to="/dashboard/recent"
-            className={({ isActive }) => 
-              `flex items-center px-4 py-3 transition-colors ${
-                isActive 
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                  : "hover:bg-sidebar-accent/50"
-              }`
-            }
-          >
-            <List size={20} />
-            {!isSidebarCollapsed && <span className="ml-3">Recent Projects</span>}
-          </NavLink>
-          
-          <NavLink 
-            to="/dashboard/watchlist"
-            className={({ isActive }) => 
-              `flex items-center px-4 py-3 transition-colors ${
-                isActive 
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                  : "hover:bg-sidebar-accent/50"
-              }`
-            }
-          >
-            <Bell size={20} />
-            {!isSidebarCollapsed && <span className="ml-3">Watchlist</span>}
-          </NavLink>
-          
-          <NavLink 
-            to="/dashboard/search"
-            className={({ isActive }) => 
-              `flex items-center px-4 py-3 transition-colors ${
-                isActive 
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                  : "hover:bg-sidebar-accent/50"
-              }`
-            }
-          >
-            <Search size={20} />
-            {!isSidebarCollapsed && <span className="ml-3">Search</span>}
-          </NavLink>
-        </nav>
-
-        <div className="absolute bottom-4 left-0 right-0 px-4">
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
-            onClick={logout}
-          >
-            {isSidebarCollapsed ? "Out" : "Sign Out"}
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
-          <Outlet />
-        </div>
+      </header>
+      <main className="p-6">
+        <Outlet />
       </main>
     </div>
-  );
-};
+  )
+}
 
-export default DashboardLayout;
+export default DashboardLayout

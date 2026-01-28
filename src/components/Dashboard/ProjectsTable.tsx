@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Table, 
@@ -8,25 +8,25 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { 
-  ProjectStatus, 
   ProjectFieldsFragment,
   useProjectReviewSubmitMutation,
-  useProjectStatusUpdateMutation,
   ProjectReviewStatusInput,
   ProjectReviewStatus,
   RejectionReason,
   ProjectFundingStrategy
 } from "@/types/generated/graphql";
 import ProjectReviewModal from "./ProjectReviewModal";
+import {
+  ProjectStatusBadge,
+  ReviewStatusBadge,
+} from "@/components/Dashboard/StatusBadge";
 import { ExternalLink, Star, Copy, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -65,6 +65,24 @@ const saveReviewedProjects = (reviewedIds: string[]) => {
   localStorage.setItem(LOCAL_STORAGE_REVIEWED_KEY, JSON.stringify(reviewedIds));
 };
 
+const getLatestReview = (project: ProjectFieldsFragment) => {
+  const reviews = project.reviews ?? [];
+  if (reviews.length === 0) return null;
+
+  let latestReview = reviews[0];
+  let latestTime = new Date(reviews[0].createdAt).getTime();
+
+  for (let i = 1; i < reviews.length; i += 1) {
+    const reviewTime = new Date(reviews[i].createdAt).getTime();
+    if (reviewTime > latestTime) {
+      latestTime = reviewTime;
+      latestReview = reviews[i];
+    }
+  }
+
+  return latestReview;
+};
+
 const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return '-';
   
@@ -92,9 +110,30 @@ const formatDate = (dateString: string | null | undefined): string => {
   }
 };
 
+const formatFundingStrategy = (
+  strategy: ProjectFundingStrategy | null | undefined
+): string => {
+  if (!strategy) return '-';
+  switch (strategy) {
+    case ProjectFundingStrategy.AllOrNothing:
+      return 'All or Nothing';
+    case ProjectFundingStrategy.TakeItAll:
+      return 'Take It All';
+    default:
+      return String(strategy);
+  }
+};
+
+const getProjectUrl = (projectName: string | null | undefined): string => {
+  return projectName ? `https://geyser.fund/project/${projectName}` : '#'; 
+};
+
 interface ProjectsTableProps {
   projects: ProjectFieldsFragment[];
   onRenderedCountChange?: (count: number) => void;
+}
+
+interface ProjectsTableBaseProps extends ProjectsTableProps {
   disableReviewedFilter?: boolean;
   showReviewStatus?: boolean; // If true, show latest review status instead of project status
 }
@@ -104,12 +143,12 @@ interface ModalState {
   projectId: string | null;
 }
 
-const ProjectsTable = ({ 
+const ProjectsTableBase = ({ 
   projects, 
   onRenderedCountChange, 
   disableReviewedFilter = false,
   showReviewStatus = false
-}: ProjectsTableProps) => {
+}: ProjectsTableBaseProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [modalState, setModalState] = useState<ModalState>({ 
@@ -129,17 +168,15 @@ const ProjectsTable = ({
 
   const [reviewSubmitMutate, { loading: reviewSubmitLoading }] = useProjectReviewSubmitMutation();
 
-  const handleWatchlistToggle = (projectId: string) => {
-    const currentWatchlist = getWatchlist();
-    let updatedWatchlist;
-    if (currentWatchlist.includes(projectId)) {
-      updatedWatchlist = currentWatchlist.filter(id => id !== projectId);
-    } else {
-      updatedWatchlist = [...currentWatchlist, projectId];
-    }
-    saveWatchlist(updatedWatchlist);
-    setWatchlist(updatedWatchlist);
-  };
+  const handleWatchlistToggle = useCallback((projectId: string) => {
+    setWatchlist((currentWatchlist) => {
+      const updatedWatchlist = currentWatchlist.includes(projectId)
+        ? currentWatchlist.filter(id => id !== projectId)
+        : [...currentWatchlist, projectId];
+      saveWatchlist(updatedWatchlist);
+      return updatedWatchlist;
+    });
+  }, []);
 
   const handleCopyEmail = (email: string | undefined) => {
     if (email) {
@@ -167,14 +204,16 @@ const ProjectsTable = ({
     }
   };
 
-  const handleMarkAsReviewed = (projectId: string) => {
-    const currentReviewed = getReviewedProjects();
-    if (!currentReviewed.includes(projectId)) {
+  const handleMarkAsReviewed = useCallback((projectId: string) => {
+    setReviewedProjects((currentReviewed) => {
+      if (currentReviewed.includes(projectId)) {
+        return currentReviewed;
+      }
       const updatedReviewed = [...currentReviewed, projectId];
       saveReviewedProjects(updatedReviewed);
-      setReviewedProjects(updatedReviewed);
-    }
-  };
+      return updatedReviewed;
+    });
+  }, []);
 
   const handleSubmitReview = (projectId: string) => {
     setModalState({
@@ -220,76 +259,6 @@ const ProjectsTable = ({
     }
   };
 
-  const getStatusBadge = (status: ProjectStatus | null | undefined) => {
-    switch (status) {
-      case ProjectStatus.Active:
-        return <Badge className="status-approved">Active</Badge>;
-      case ProjectStatus.InReview:
-        return <Badge className="status-pending">In Review</Badge>;
-      case ProjectStatus.Closed:
-        return <Badge className="status-rejected">Closed</Badge>;
-      case ProjectStatus.Draft:
-         return <Badge variant="secondary">Draft</Badge>;
-      case ProjectStatus.Deleted:
-         return <Badge variant="destructive">Deleted</Badge>;
-       case ProjectStatus.Inactive:
-         return <Badge variant="outline">Inactive</Badge>;
-       case ProjectStatus.PreLaunch:
-          return <Badge className="status-prelaunch">Pre-launch</Badge>;
-        case ProjectStatus.Accepted:
-          return <Badge className="status-accepted">Accepted</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
-
-  const getProjectUrl = (projectName: string | null | undefined): string => {
-    return projectName ? `https://geyser.fund/project/${projectName}` : '#'; 
-  };
-
-// Helper to format funding strategy enum to a human-friendly label
-const formatFundingStrategy = (
-  strategy: ProjectFundingStrategy | null | undefined
-): string => {
-  if (!strategy) return '-';
-  switch (strategy) {
-    case ProjectFundingStrategy.AllOrNothing:
-      return 'All or Nothing';
-    case ProjectFundingStrategy.TakeItAll:
-      return 'Take It All';
-    default:
-      return String(strategy);
-  }
-};
-
-  // Helper function to get the latest review for a project
-  const getLatestReview = (project: ProjectFieldsFragment) => {
-    if (!project.reviews || project.reviews.length === 0) return null;
-    
-    // Sort reviews by createdAt descending to get the latest one
-    const sortedReviews = [...project.reviews].sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-    
-    return sortedReviews[0];
-  };
-
-  // Helper function to get review status badge
-  const getReviewStatusBadge = (status: ProjectReviewStatus | null | undefined) => {
-    switch (status) {
-      case ProjectReviewStatus.Accepted:
-        return <Badge className="status-approved">Accepted</Badge>;
-      case ProjectReviewStatus.Rejected:
-        return <Badge className="status-rejected">Rejected</Badge>;
-      case ProjectReviewStatus.RevisionsRequested:
-        return <Badge className="status-pending">Revisions Requested</Badge>;
-      case ProjectReviewStatus.Pending:
-        return <Badge className="status-pending">Pending</Badge>;
-      default:
-        return <Badge variant="outline">No Review</Badge>;
-    }
-  };
-
   // Helper function to determine if submit review should be disabled
   const isSubmitReviewDisabled = (project: ProjectFieldsFragment): { disabled: boolean; reason?: string } => {
     if (!showReviewStatus) return { disabled: false };
@@ -305,9 +274,11 @@ const formatFundingStrategy = (
   };
 
   // Filter projects *before* rendering, conditionally skipping the reviewed filter
-  const visibleProjects = disableReviewedFilter 
-    ? projects // If prop is true, show all passed projects
-    : projects.filter(project => !reviewedProjects.includes(project.id)); // Otherwise, filter reviewed
+  const visibleProjects = useMemo(() => {
+    return disableReviewedFilter
+      ? projects
+      : projects.filter(project => !reviewedProjects.includes(project.id));
+  }, [disableReviewedFilter, projects, reviewedProjects]);
 
   // Effect to report the count of visible projects
   useEffect(() => {
@@ -318,6 +289,16 @@ const formatFundingStrategy = (
 
   const handleRowClick = (projectId: string) => {
     navigate(`/dashboard/project/${projectId}`);
+  };
+
+  const handleRowKeyDown = (
+    event: React.KeyboardEvent<HTMLTableRowElement>,
+    projectId: string
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleRowClick(projectId);
+    }
   };
 
   const handleButtonClick = (e: React.MouseEvent) => {
@@ -359,26 +340,31 @@ const formatFundingStrategy = (
                     key={project.id} 
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => handleRowClick(project.id)}
+                    onKeyDown={(event) => handleRowKeyDown(event, project.id)}
+                    role="button"
+                    tabIndex={0}
                   >
                     <TableCell className="font-medium">{project.title}</TableCell>
                     <TableCell>
                       {showReviewStatus 
-                        ? getReviewStatusBadge(latestReview?.status) 
-                        : getStatusBadge(project.status)
+                        ? <ReviewStatusBadge status={latestReview?.status} />
+                        : <ProjectStatusBadge status={project.status} />
                       }
                     </TableCell>
                     <TableCell>{formatFundingStrategy(project.fundingStrategy)}</TableCell>
                     <TableCell>{formatDate(project.createdAt)}</TableCell>
                     <TableCell>
-                      <a 
-                        href={getProjectUrl(project.name)}
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="text-blue-500 hover:text-blue-700"
-                        onClick={handleButtonClick}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
+                      <Button asChild variant="ghost" size="icon">
+                        <a
+                          href={getProjectUrl(project.name)}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={handleButtonClick}
+                          aria-label="Open project"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
                     </TableCell>
                     <TableCell>
                       <Button 
@@ -409,27 +395,25 @@ const formatFundingStrategy = (
                     </TableCell>
                     <TableCell>
                       {submitReviewState.disabled ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span onClick={handleButtonClick}>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={true}
-                                  aria-label="Submit review for project (disabled)"
-                                  className="flex items-center gap-1"
-                                >
-                                  <FileText className="h-4 w-4" />
-                                  Review
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{submitReviewState.reason}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span onClick={handleButtonClick}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={true}
+                                aria-label="Submit review for project (disabled)"
+                                className="flex items-center gap-1"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Review
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{submitReviewState.reason}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       ) : (
                         <Button
                           variant="outline"
@@ -465,4 +449,17 @@ const formatFundingStrategy = (
   );
 };
 
+const ProjectsTable = (props: ProjectsTableProps) => {
+  return <ProjectsTableBase {...props} />;
+};
+
+const AllProjectsTable = (props: ProjectsTableProps) => {
+  return <ProjectsTableBase {...props} disableReviewedFilter />;
+};
+
+const ReviewStatusProjectsTable = (props: ProjectsTableProps) => {
+  return <ProjectsTableBase {...props} disableReviewedFilter showReviewStatus />;
+};
+
+export { AllProjectsTable, ReviewStatusProjectsTable };
 export default ProjectsTable;

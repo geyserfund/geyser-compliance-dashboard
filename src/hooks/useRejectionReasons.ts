@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchWithAuth } from '@/utils/apiClient';
 
 export interface RejectionReason {
@@ -23,7 +23,7 @@ export const useRejectionReasons = (): UseRejectionReasonsReturn => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchReasons = async () => {
+  const fetchReasons = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -54,11 +54,11 @@ export const useRejectionReasons = (): UseRejectionReasonsReturn => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchReasons();
-  }, []);
+  }, [fetchReasons]);
 
   return {
     reasons,

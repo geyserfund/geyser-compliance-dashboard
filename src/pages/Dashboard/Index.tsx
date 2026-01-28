@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from "react";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import DashboardSearchInput from "@/components/Dashboard/DashboardSearchInput";
+import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
+import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
 import { 
   useProjectsGetQuery, 
   ProjectFieldsFragment,
@@ -9,10 +11,9 @@ import {
   // No PageInfo types needed
 } from "@/types/generated/graphql";
 import ProjectsTable from "@/components/Dashboard/ProjectsTable";
-import { Search } from "lucide-react";
 import { useInView } from 'react-intersection-observer';
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // No PageInfo or ExpectedGetResponse types needed
 
@@ -21,7 +22,7 @@ const ITEMS_PER_PAGE = 20;
 const DashboardPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const isFetchingMore = useRef(false);
-  const initialLoadComplete = useRef(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   // State to track if the last fetch indicated more data might exist
   const [hasPotentiallyMoreData, setHasPotentiallyMoreData] = useState(true);
   // State to hold the count of projects visible *after* internal filtering in ProjectsTable
@@ -50,7 +51,7 @@ const DashboardPage = () => {
     },
     notifyOnNetworkStatusChange: true,
     onCompleted: (completedData) => {
-      initialLoadComplete.current = true;
+      setInitialLoadComplete(true);
       // Check if the initial fetch returned less than a full page
       const initialCount = completedData.projectsGet?.projects?.length ?? 0;
       if (initialCount < ITEMS_PER_PAGE) {
@@ -60,16 +61,11 @@ const DashboardPage = () => {
   });
 
   const projectsData: ProjectFieldsFragment[] = data?.projectsGet?.projects || [];
-  console.log("Component Render: projectsData.length =", projectsData.length);
-  // hasMoreData is now derived from state based on last fetch count
-  console.log("Component Render: hasPotentiallyMoreData state:", hasPotentiallyMoreData);
 
   // Extracted function to handle fetching more data
-  const loadMoreProjects = async () => {
-    console.log("loadMoreProjects called. Checking conditions...");
+  const loadMoreProjects = useCallback(async () => {
     // Prevent fetching if already loading or no more data
     if (loading || isFetchingMore.current || !hasPotentiallyMoreData || !fetchMore) {
-      console.log("loadMoreProjects: Aborting fetch.", { loading, isFetching: isFetchingMore.current, hasPotentiallyMoreData });
       return;
     }
 
@@ -77,11 +73,9 @@ const DashboardPage = () => {
 
     // Need a cursor (last project ID) to fetch next page unless it's the very first fetch after zero render
     if (!lastProjectId && projectsData.length > 0) {
-      console.log("loadMoreProjects: Aborting fetch. Cannot determine cursor (lastProjectId).");
       return; // Should not happen if projectsData is populated
     }
 
-    console.log("loadMoreProjects: Proceeding with fetch. Cursor:", lastProjectId);
     isFetchingMore.current = true;
 
     try {
@@ -98,19 +92,15 @@ const DashboardPage = () => {
           }
         },
         updateQuery: (prev, { fetchMoreResult }) => {
-          console.log("updateQuery called");
           if (!fetchMoreResult?.projectsGet) {
-            console.log("updateQuery: No fetchMoreResult data");
             setHasPotentiallyMoreData(false); 
             return prev;
           }
 
           const prevProjects = prev.projectsGet?.projects || [];
           const newProjects = fetchMoreResult.projectsGet.projects || [];
-          console.log(`updateQuery: Merging ${prevProjects.length} (prev) + ${newProjects.length} (new)`);
           
           if (newProjects.length < ITEMS_PER_PAGE) {
-            console.log(`updateQuery: Fetched ${newProjects.length} items, setting hasPotentiallyMoreData to false.`);
             setHasPotentiallyMoreData(false);
           } else {
             setHasPotentiallyMoreData(true);
@@ -136,35 +126,31 @@ const DashboardPage = () => {
       console.error("Failed to fetch more projects:", err);
       setHasPotentiallyMoreData(false); // Assume no more on error
     } finally {
-      console.log("Fetch more finished (finally). Resetting isFetchingMore flag.");
       isFetchingMore.current = false;
     }
-  };
+  }, [fetchMore, hasPotentiallyMoreData, loading, projectsData]);
 
   // useEffect for infinite scroll trigger
   useEffect(() => {
     // Only trigger via scroll if the element is in view and initial load is done
-    if (initialLoadComplete.current && loadMoreInView) {
-      console.log("FetchMore Effect triggered by scroll.");
-      loadMoreProjects(); // Call the extracted function
+    if (initialLoadComplete && loadMoreInView) {
+      void loadMoreProjects(); // Call the extracted function
     }
-  // Only depend on loadMoreInView and initialLoadComplete for scroll trigger
-  // loadMoreProjects function itself doesn't need to be a dependency if defined stablely
-  }, [loadMoreInView, initialLoadComplete.current]); // Simplified dependencies
+  }, [initialLoadComplete, loadMoreInView, loadMoreProjects]); // Simplified dependencies
 
-  const filteredProjects: ProjectFieldsFragment[] = projectsData.filter(project => {
+  const filteredProjects: ProjectFieldsFragment[] = useMemo(() => {
     const lowercaseQuery = searchQuery.toLowerCase().trim();
-    if (lowercaseQuery === "") return true;
-    return (
+    if (lowercaseQuery === "") return projectsData;
+    return projectsData.filter(project =>
       project.title.toLowerCase().includes(lowercaseQuery) ||
       (project.name && project.name.toLowerCase().includes(lowercaseQuery))
     );
-  });
+  }, [projectsData, searchQuery]);
 
   // Callback for ProjectsTable to report its visible count
-  const handleRenderedCountChange = (count: number) => {
+  const handleRenderedCountChange = useCallback((count: number) => {
     setRenderedProjectCount(count);
-  };
+  }, []);
 
   // Update initial rendered count when filteredProjects changes (e.g., due to search)
   useEffect(() => {
@@ -175,45 +161,33 @@ const DashboardPage = () => {
     // We actually want ProjectsTable to be the source of truth once it mounts
     // and filters. So maybe don't set it here initially? Let's see.
     // Let ProjectsTable report the count initially via its useEffect.
-  }, [filteredProjects.length]); // Only trigger if search filter changes length
+  }, [filteredProjects.length, renderedProjectCount]); // Only trigger if search filter changes length
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Compliance Dashboard</h1>
-        <div className="relative w-64">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
+      <DashboardToolbar
+        right={
+          <DashboardSearchInput
             placeholder="Search projects..."
-            className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-        </div>
-      </div>
+        }
+      />
 
       <div>
         <h2 className="text-xl font-semibold mb-4">
           Unreviewed Projects ({loading && renderedProjectCount === null ? 'Loading...' : renderedProjectCount ?? 0})
         </h2>
         {error && (
-          <p className="text-red-500">Error loading projects: {error.message}</p>
+          <Alert variant="destructive">
+            <AlertDescription>
+              Error loading projects: {error.message}
+            </AlertDescription>
+          </Alert>
         )}
         {loading && projectsData.length === 0 ? (
-          <div className="rounded-md border p-4 space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex space-x-4">
-                <Skeleton className="h-10 w-[200px]" />
-                <Skeleton className="h-10 w-[100px]" />
-                <Skeleton className="h-10 w-[120px]" />
-                <Skeleton className="h-10 w-[200px]" />
-                <Skeleton className="h-10 w-[200px]" />
-                <Skeleton className="h-10 w-[120px]" />
-                <Skeleton className="h-10 w-[100px]" />
-                <Skeleton className="h-10 w-[50px]" />
-              </div>
-            ))}
-          </div>
+          <ProjectsTableSkeleton />
         ) : (
           <ProjectsTable 
             projects={filteredProjects}

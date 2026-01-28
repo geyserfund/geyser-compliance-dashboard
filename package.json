@@ -9,6 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:setup": "node scripts/save-storage-state.mjs",
     "graph:format": "prettier --write \"src/types/generated/graphql.ts\"",
     "graph:fetch": "node scripts/graph-fetch.cjs",
     "graph:generate": "node scripts/graph-generate.cjs",
@@ -57,6 +59,7 @@
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "nostr-tools": "^2.12.0",
+    "playwright": "^1.58.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -79,6 +82,7 @@
     "@graphql-codegen/typescript-operations": "^4.6.0",
     "@graphql-codegen/typescript-react-apollo": "^4.3.2",
     "@graphql-codegen/typescript-resolvers": "^4.5.0",
+    "@playwright/test": "^1.58.0",
     "@tailwindcss/typography": "^0.5.15",
     "@types/node": "^22.5.5",
     "@types/react": "^18.3.3",
@@ -99,6 +103,5 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"
-  },
-  "packageManager": "yarn@3.5.0+sha256.e4fc5f94867cd0b492fb0a644f14e7b47c4387bc75d46b56e86db6d0f1a6cb97"
+  }
 }

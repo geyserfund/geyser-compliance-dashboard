@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from "react";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import DashboardSearchInput from "@/components/Dashboard/DashboardSearchInput";
+import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
+import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
 import { 
   useProjectsGetQuery, 
   ProjectFieldsFragment,
@@ -7,17 +9,16 @@ import {
   ProjectsOrderByField,
   ProjectStatus
 } from "@/types/generated/graphql";
-import ProjectsTable from "@/components/Dashboard/ProjectsTable";
-import { Search } from "lucide-react";
+import { ReviewStatusProjectsTable } from "@/components/Dashboard/ProjectsTable";
 import { useInView } from 'react-intersection-observer';
-import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ITEMS_PER_PAGE = 20;
 
 const InReviewPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const isFetchingMore = useRef(false);
-  const initialLoadComplete = useRef(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [hasPotentiallyMoreData, setHasPotentiallyMoreData] = useState(true);
   const [renderedProjectCount, setRenderedProjectCount] = useState<number | null>(null);
 
@@ -36,7 +37,7 @@ const InReviewPage = () => {
     },
     notifyOnNetworkStatusChange: true,
     onCompleted: (completedData) => {
-      initialLoadComplete.current = true;
+      setInitialLoadComplete(true);
       const initialCount = completedData.projectsGet?.projects?.length ?? 0;
       if (initialCount < ITEMS_PER_PAGE) {
         setHasPotentiallyMoreData(false);
@@ -46,7 +47,7 @@ const InReviewPage = () => {
 
   const projectsData: ProjectFieldsFragment[] = data?.projectsGet?.projects || [];
 
-  const loadMoreProjects = async () => {
+  const loadMoreProjects = useCallback(async () => {
     if (loading || isFetchingMore.current || !hasPotentiallyMoreData || !fetchMore) {
       return;
     }
@@ -105,73 +106,62 @@ const InReviewPage = () => {
     } finally {
       isFetchingMore.current = false;
     }
-  };
+  }, [fetchMore, hasPotentiallyMoreData, loading, projectsData]);
 
   useEffect(() => {
-    if (initialLoadComplete.current && loadMoreInView) {
-      loadMoreProjects();
+    if (initialLoadComplete && loadMoreInView) {
+      void loadMoreProjects();
     }
-  }, [loadMoreInView, initialLoadComplete.current]);
+  }, [initialLoadComplete, loadMoreInView, loadMoreProjects]);
 
-  const filteredProjects: ProjectFieldsFragment[] = projectsData.filter(project => {
+  const filteredProjects: ProjectFieldsFragment[] = useMemo(() => {
     const lowercaseQuery = searchQuery.toLowerCase().trim();
-    if (lowercaseQuery === "") return true;
-    return (
+    if (lowercaseQuery === "") return projectsData;
+    return projectsData.filter(project =>
       project.title.toLowerCase().includes(lowercaseQuery) ||
       (project.name && project.name.toLowerCase().includes(lowercaseQuery))
     );
-  });
+  }, [projectsData, searchQuery]);
 
-  const handleRenderedCountChange = (count: number) => {
+  const handleRenderedCountChange = useCallback((count: number) => {
     setRenderedProjectCount(count);
-  };
+  }, []);
 
   useEffect(() => {
     if (renderedProjectCount === null) {
        setRenderedProjectCount(filteredProjects.length);
     }
-  }, [filteredProjects.length]);
+  }, [filteredProjects.length, renderedProjectCount]);
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">In Review Projects</h1>
-        <div className="relative w-64">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
+      <DashboardToolbar
+        right={
+          <DashboardSearchInput
             placeholder="Search projects..."
-            className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-        </div>
-      </div>
+        }
+      />
 
       <div>
         <h2 className="text-xl font-semibold mb-4">
           Projects In Review ({loading && renderedProjectCount === null ? 'Loading...' : renderedProjectCount ?? 0})
         </h2>
         {error && (
-          <p className="text-red-500">Error loading projects: {error.message}</p>
+          <Alert variant="destructive">
+            <AlertDescription>
+              Error loading projects: {error.message}
+            </AlertDescription>
+          </Alert>
         )}
         {loading && projectsData.length === 0 ? (
-          <div className="rounded-md border p-4 space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex space-x-4">
-                <Skeleton className="h-10 w-[200px]" />
-                <Skeleton className="h-10 w-[100px]" />
-                <Skeleton className="h-10 w-[120px]" />
-                <Skeleton className="h-10 w-[120px]" />
-                <Skeleton className="h-10 w-[80px]" />
-              </div>
-            ))}
-          </div>
+          <ProjectsTableSkeleton columns={[200, 100, 120, 120, 80]} />
         ) : (
-          <ProjectsTable 
+          <ReviewStatusProjectsTable 
             projects={filteredProjects}
             onRenderedCountChange={handleRenderedCountChange}
-            disableReviewedFilter={true} // Show all in-review projects, don't filter by reviewed status
-            showReviewStatus={true} // Show latest review status instead of project status
           />
         )}
         
