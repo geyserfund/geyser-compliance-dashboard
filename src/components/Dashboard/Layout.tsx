@@ -1,10 +1,46 @@
-import { Link, Outlet } from "react-router-dom"
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { LogOut, ShieldCheck } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+type SidebarItem = {
+  label: string
+  to: string
+  isActive: (pathname: string) => boolean
+}
+
+const sidebarItems: SidebarItem[] = [
+  {
+    label: "Project Reviews",
+    to: "/dashboard",
+    isActive: (pathname) =>
+      pathname === "/dashboard" || (pathname.startsWith("/dashboard/") && pathname !== "/dashboard/payments"),
+  },
+  {
+    label: "Payments",
+    to: "/dashboard/payments",
+    isActive: (pathname) => pathname === "/dashboard/payments",
+  },
+]
 
 const DashboardLayout = () => {
   const { logout } = useAuth()
+  const { pathname } = useLocation()
+
+  const renderSidebarLink = (item: SidebarItem) => {
+    const active = item.isActive(pathname)
+    return (
+      <Button
+        asChild
+        key={item.to}
+        variant={active ? "secondary" : "ghost"}
+        className={cn("w-full justify-start")}
+      >
+        <NavLink to={item.to}>{item.label}</NavLink>
+      </Button>
+    )
+  }
 
   return (
     <div className="min-h-svh bg-background">
@@ -22,9 +58,19 @@ const DashboardLayout = () => {
           </Button>
         </div>
       </header>
-      <main className="p-6">
-        <Outlet />
-      </main>
+      <div className="flex min-h-[calc(100svh-56px)]">
+        <aside className="hidden w-64 border-r p-4 md:block">
+          <nav className="space-y-2" aria-label="Admin sections">
+            {sidebarItems.map((item) => renderSidebarLink(item))}
+          </nav>
+        </aside>
+        <main className="flex-1 p-6">
+          <nav className="mb-6 flex gap-2 md:hidden" aria-label="Admin sections">
+            {sidebarItems.map((item) => renderSidebarLink(item))}
+          </nav>
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

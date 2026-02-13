@@ -20,6 +20,7 @@ import RecentProjectsPage from "./pages/Dashboard/Recent";
 import InReviewPage from "./pages/Dashboard/InReview";
 import AcceptedProjectsPage from "./pages/Dashboard/Accepted";
 import { ProjectDetail } from "./pages/Dashboard/ProjectDetail";
+import PaymentsPage from "./pages/Dashboard/Payments";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const AppRoutes = () => {
         <Route path="recent" element={<RecentProjectsPage />} />
         <Route path="watchlist" element={<Watchlist />} />
         <Route path="search" element={<Search />} />
+        <Route path="payments" element={<PaymentsPage />} />
         <Route path="project/:id" element={<ProjectDetail />} />
       </Route>
       
