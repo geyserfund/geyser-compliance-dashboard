@@ -27,7 +27,7 @@ import {
   ProjectStatusBadge,
   ReviewStatusBadge,
 } from "@/components/Dashboard/StatusBadge";
-import { ExternalLink, Star, Copy, FileText } from "lucide-react";
+import { ExternalLink, Star, Copy, FileText, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const LOCAL_STORAGE_WATCHLIST_KEY = "dashboardWatchlist";
@@ -124,6 +124,16 @@ const formatFundingStrategy = (
   }
 };
 
+const formatLaunchStrategy = (strategy: string | null | undefined): string => {
+  if (!strategy) return "-";
+
+  return strategy
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 const getProjectUrl = (projectName: string | null | undefined): string => {
   return projectName ? `https://geyser.fund/project/${projectName}` : '#'; 
 };
@@ -131,6 +141,10 @@ const getProjectUrl = (projectName: string | null | undefined): string => {
 interface ProjectsTableProps {
   projects: ProjectFieldsFragment[];
   onRenderedCountChange?: (count: number) => void;
+  showLaunchPlan?: boolean;
+  showWaveFeeAction?: boolean;
+  sortableStatus?: boolean;
+  sortableCreatedAt?: boolean;
 }
 
 interface ProjectsTableBaseProps extends ProjectsTableProps {
@@ -143,11 +157,17 @@ interface ModalState {
   projectId: string | null;
 }
 
+type SortDirection = "asc" | "desc";
+
 const ProjectsTableBase = ({ 
   projects, 
   onRenderedCountChange, 
   disableReviewedFilter = false,
-  showReviewStatus = false
+  showReviewStatus = false,
+  showLaunchPlan = false,
+  showWaveFeeAction = false,
+  sortableStatus = false,
+  sortableCreatedAt = false,
 }: ProjectsTableBaseProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -159,6 +179,9 @@ const ProjectsTableBase = ({
   const [watchlist, setWatchlist] = useState<string[]>([]); 
   // New state for reviewed projects
   const [reviewedProjects, setReviewedProjects] = useState<string[]>([]); 
+  const [waveFeeProjectIds, setWaveFeeProjectIds] = useState<string[]>([]);
+  const [statusSortDirection, setStatusSortDirection] = useState<SortDirection>("asc");
+  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>("desc");
 
   // Load watchlist and reviewed projects from localStorage on mount
   useEffect(() => {
@@ -226,7 +249,8 @@ const ProjectsTableBase = ({
     projectId: string,
     reviewStatus: ProjectReviewStatusInput,
     rejectionReasons?: RejectionReason[],
-    reviewNotes?: string
+    reviewNotes?: string,
+    waveFee?: boolean
   ) => {
     try {
       const result = await reviewSubmitMutate({ 
@@ -235,7 +259,8 @@ const ProjectsTableBase = ({
             projectId, 
             status: reviewStatus,
             rejectionReasons: rejectionReasons && rejectionReasons.length > 0 ? rejectionReasons : undefined,
-            reviewNotes: reviewNotes
+            reviewNotes: reviewNotes,
+            waveFee,
           } 
         } 
       });
@@ -259,6 +284,36 @@ const ProjectsTableBase = ({
     }
   };
 
+  const handleWaveFee = async (projectId: string) => {
+    try {
+      await reviewSubmitMutate({
+        variables: {
+          input: {
+            projectId,
+            status: ProjectReviewStatusInput.Accepted,
+            waveFee: true,
+          },
+        },
+      });
+
+      setWaveFeeProjectIds((current) =>
+        current.includes(projectId) ? current : [...current, projectId]
+      );
+
+      toast({
+        title: "Launch fee waived",
+        description: `Project ${projectId} was marked as having its launch fee waived.`,
+      });
+    } catch (error) {
+      console.error("Failed to wave fee:", error);
+      toast({
+        title: "Error waiving launch fee",
+        description: error instanceof Error ? error.message : "An unknown error occurred.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Helper function to determine if submit review should be disabled
   const isSubmitReviewDisabled = (project: ProjectFieldsFragment): { disabled: boolean; reason?: string } => {
     if (!showReviewStatus) return { disabled: false };
@@ -273,12 +328,93 @@ const ProjectsTableBase = ({
     return { disabled: false };
   };
 
+  const getStatusSortValue = useCallback((project: ProjectFieldsFragment): number => {
+    if (showReviewStatus) {
+      switch (getLatestReview(project)?.status) {
+        case ProjectReviewStatus.Pending:
+          return 0;
+        case ProjectReviewStatus.RevisionsRequested:
+          return 1;
+        case ProjectReviewStatus.Accepted:
+          return 2;
+        case ProjectReviewStatus.Rejected:
+          return 3;
+        default:
+          return 4;
+      }
+    }
+
+    switch (project.status) {
+      case "IN_REVIEW":
+        return 0;
+      case "ACCEPTED":
+        return 1;
+      case "REJECTED":
+        return 2;
+      default:
+        return 3;
+    }
+  }, [showReviewStatus]);
+
+  const getCreatedAtSortValue = useCallback((project: ProjectFieldsFragment): number => {
+    const createdAt = Number(project.createdAt);
+    return Number.isNaN(createdAt) ? 0 : createdAt;
+  }, []);
+
+  const renderSortIcon = (direction: SortDirection) => {
+    return direction === "asc" ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    );
+  };
+
   // Filter projects *before* rendering, conditionally skipping the reviewed filter
   const visibleProjects = useMemo(() => {
-    return disableReviewedFilter
+    const filteredProjects = disableReviewedFilter
       ? projects
       : projects.filter(project => !reviewedProjects.includes(project.id));
-  }, [disableReviewedFilter, projects, reviewedProjects]);
+
+    if (!sortableStatus && !sortableCreatedAt) {
+      return filteredProjects;
+    }
+
+    return [...filteredProjects].sort((left, right) => {
+      if (sortableStatus) {
+        const leftStatus = getStatusSortValue(left);
+        const rightStatus = getStatusSortValue(right);
+
+        if (leftStatus !== rightStatus) {
+          return statusSortDirection === "asc"
+            ? leftStatus - rightStatus
+            : rightStatus - leftStatus;
+        }
+      }
+
+      if (sortableCreatedAt) {
+        const leftCreatedAt = getCreatedAtSortValue(left);
+        const rightCreatedAt = getCreatedAtSortValue(right);
+
+        if (leftCreatedAt !== rightCreatedAt) {
+          return createdAtSortDirection === "asc"
+            ? leftCreatedAt - rightCreatedAt
+            : rightCreatedAt - leftCreatedAt;
+        }
+      }
+
+      return 0;
+    });
+  }, [
+    createdAtSortDirection,
+    disableReviewedFilter,
+    getCreatedAtSortValue,
+    getStatusSortValue,
+    projects,
+    reviewedProjects,
+    sortableCreatedAt,
+    sortableStatus,
+    statusSortDirection,
+  ]);
 
   // Effect to report the count of visible projects
   useEffect(() => {
@@ -313,19 +449,63 @@ const ProjectsTableBase = ({
           <TableHeader>
             <TableRow>
               <TableHead className="w-[250px]">Project Title</TableHead>
-              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[120px]">
+                {sortableStatus ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setStatusSortDirection((current) =>
+                        current === "asc" ? "desc" : "asc"
+                      )
+                    }
+                    className="-ml-3 h-auto px-3 py-1 font-medium"
+                  >
+                    Status
+                    {renderSortIcon(statusSortDirection)}
+                  </Button>
+                ) : (
+                  "Status"
+                )}
+              </TableHead>
               <TableHead className="w-[150px]">Funding</TableHead>
-              <TableHead className="w-[150px]">Created On</TableHead>
+              {showLaunchPlan ? (
+                <TableHead className="w-[160px]">Launch Plan</TableHead>
+              ) : null}
+              <TableHead className="w-[150px]">
+                {sortableCreatedAt ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setCreatedAtSortDirection((current) =>
+                        current === "asc" ? "desc" : "asc"
+                      )
+                    }
+                    className="-ml-3 h-auto px-3 py-1 font-medium"
+                  >
+                    Created On
+                    {renderSortIcon(createdAtSortDirection)}
+                  </Button>
+                ) : (
+                  "Created On"
+                )}
+              </TableHead>
               <TableHead className="w-[50px]">URL</TableHead>
               <TableHead className="w-[80px]">Watchlist</TableHead>
               <TableHead className="w-[80px]">Copy Email</TableHead>
-              <TableHead className="w-[120px]">Submit Review</TableHead>
+              <TableHead className="w-[120px]">
+                {showWaveFeeAction ? "Wave Fee" : "Submit Review"}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleProjects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={showLaunchPlan ? 9 : 8}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   {projects.length > 0 ? "All recent projects marked as reviewed or none match filter" : "No projects found"}
                 </TableCell>
               </TableRow>
@@ -334,6 +514,7 @@ const ProjectsTableBase = ({
                 const isWatchlisted = watchlist.includes(project.id);
                 const latestReview = getLatestReview(project);
                 const submitReviewState = isSubmitReviewDisabled(project);
+                const isWaveFeeApplied = project.paidLaunch || waveFeeProjectIds.includes(project.id);
 
                 return (
                   <TableRow 
@@ -352,6 +533,9 @@ const ProjectsTableBase = ({
                       }
                     </TableCell>
                     <TableCell>{formatFundingStrategy(project.fundingStrategy)}</TableCell>
+                    {showLaunchPlan ? (
+                      <TableCell>{formatLaunchStrategy(project.launchStrategy)}</TableCell>
+                    ) : null}
                     <TableCell>{formatDate(project.createdAt)}</TableCell>
                     <TableCell>
                       <Button asChild variant="ghost" size="icon">
@@ -394,7 +578,20 @@ const ProjectsTableBase = ({
                       </Button>
                     </TableCell>
                     <TableCell>
-                      {submitReviewState.disabled ? (
+                      {showWaveFeeAction ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            handleButtonClick(e);
+                            void handleWaveFee(project.id);
+                          }}
+                          disabled={isWaveFeeApplied || reviewSubmitLoading}
+                          aria-label="Wave launch fee for project"
+                        >
+                          {isWaveFeeApplied ? "Fee Paid" : "Wave Fee"}
+                        </Button>
+                      ) : submitReviewState.disabled ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span onClick={handleButtonClick}>

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import DashboardSearchInput from "@/components/Dashboard/DashboardSearchInput";
+import { useState, useEffect, useRef, useCallback } from "react";
+import DashboardProjectSearch from "@/components/Dashboard/DashboardProjectSearch";
 import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
 import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
 import { 
@@ -17,7 +17,6 @@ const ITEMS_PER_PAGE = 20;
 
 // Rename component
 const RecentProjectsPage = () => { 
-  const [searchQuery, setSearchQuery] = useState("");
   const isFetchingMore = useRef(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [hasPotentiallyMoreData, setHasPotentiallyMoreData] = useState(true);
@@ -118,36 +117,19 @@ const RecentProjectsPage = () => {
     }
   }, [initialLoadComplete, loadMoreInView, loadMoreProjects]);
 
-  const filteredProjects: ProjectFieldsFragment[] = useMemo(() => {
-    const lowercaseQuery = searchQuery.toLowerCase().trim();
-    if (lowercaseQuery === "") return projectsData;
-    return projectsData.filter(project =>
-      project.title.toLowerCase().includes(lowercaseQuery) ||
-      (project.name && project.name.toLowerCase().includes(lowercaseQuery))
-    );
-  }, [projectsData, searchQuery]);
-
   const handleRenderedCountChange = useCallback((count: number) => {
     setRenderedProjectCount(count);
   }, []);
 
   useEffect(() => {
     if (renderedProjectCount === null) {
-       setRenderedProjectCount(filteredProjects.length);
+       setRenderedProjectCount(projectsData.length);
     }
-  }, [filteredProjects.length, renderedProjectCount]);
+  }, [projectsData.length, renderedProjectCount]);
 
   return (
     <div className="space-y-6">
-      <DashboardToolbar
-        right={
-          <DashboardSearchInput
-            placeholder="Search projects..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        }
-      />
+      <DashboardToolbar right={<DashboardProjectSearch />} />
 
       <div>
         {/* Update title */}
@@ -166,8 +148,9 @@ const RecentProjectsPage = () => {
           <ProjectsTableSkeleton />
         ) : (
           <AllProjectsTable 
-            projects={filteredProjects}
+            projects={projectsData}
             onRenderedCountChange={handleRenderedCountChange}
+            showLaunchPlan
           />
         )}
 

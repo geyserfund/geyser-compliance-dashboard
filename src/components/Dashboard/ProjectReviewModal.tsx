@@ -31,7 +31,8 @@ interface ProjectReviewModalProps {
     projectId: string,
     reviewStatus: ProjectReviewStatusInput,
     rejectionReasons?: RejectionReason[],
-    reviewNotes?: string
+    reviewNotes?: string,
+    waveFee?: boolean
   ) => void;
   isLoading: boolean;
 }
@@ -46,6 +47,7 @@ const ProjectReviewModal = ({
   const [selectedReviewType, setSelectedReviewType] = useState<ProjectReviewStatusInput | null>(null);
   const [selectedRejectionReasons, setSelectedRejectionReasons] = useState<RejectionReason[]>([]);
   const [reviewNotes, setReviewNotes] = useState<string>('');
+  const [waveFee, setWaveFee] = useState(false);
   const { reasons, loading: reasonsLoading, error: reasonsError, refetch } = useRejectionReasons();
 
   const handleSubmit = () => {
@@ -54,7 +56,8 @@ const ProjectReviewModal = ({
         projectId, 
         selectedReviewType, 
         selectedRejectionReasons.length > 0 ? selectedRejectionReasons : undefined,
-        reviewNotes?.trim() ? reviewNotes.trim() : undefined
+        reviewNotes?.trim() ? reviewNotes.trim() : undefined,
+        waveFee
       );
     }
   };
@@ -63,6 +66,7 @@ const ProjectReviewModal = ({
     setSelectedReviewType(null);
     setSelectedRejectionReasons([]);
     setReviewNotes('');
+    setWaveFee(false);
     onOpenChange(false);
   };
 
@@ -75,6 +79,9 @@ const ProjectReviewModal = ({
       }
     });
   };
+
+  const showReviewNotes = selectedReviewType !== null;
+  const showWaveFee = selectedReviewType === ProjectReviewStatusInput.Accepted;
 
   // Check if rejection reasons should be shown
   const showRejectionReasons = selectedReviewType === ProjectReviewStatusInput.Rejected || 
@@ -129,7 +136,8 @@ const ProjectReviewModal = ({
                 setSelectedReviewType(value as ProjectReviewStatusInput);
                 // Clear rejection reasons when changing review type
                 setSelectedRejectionReasons([]);
-                  setReviewNotes('');
+                setReviewNotes('');
+                setWaveFee(false);
               }}
             >
               <SelectTrigger id="review-type-select">
@@ -159,68 +167,91 @@ const ProjectReviewModal = ({
           </div>
 
           {/* Review Notes & Rejection Reasons */}
-          {showRejectionReasons && (
+          {(showReviewNotes || showRejectionReasons) && (
             <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="review-notes">Review Notes (optional)</Label>
-                <Textarea
-                  id="review-notes"
-                  name="reviewNotes"
-                  autoComplete="off"
-                  placeholder="Add specific notes or context for the creator…"
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                  className="min-h-[100px]"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Rejection Reasons (optional)</Label>
-              {reasonsLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              ) : reasonsError ? (
-                <div className="space-y-2">
-                  <Alert variant="destructive">
-                    <AlertDescription>
-                      Failed to load rejection reasons: {reasonsError}
-                    </AlertDescription>
-                  </Alert>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={refetch}
-                    className="w-full"
-                  >
-                    Retry
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-40 overflow-y-auto border rounded-md p-3">
-                  {reasons.map((reason) => (
-                    <label
-                      key={reason.key}
-                      htmlFor={`reason-${reason.key}`}
-                      className="flex items-start space-x-2 rounded-sm p-1 cursor-pointer hover:bg-muted/50"
-                    >
-                      <Checkbox
-                        id={`reason-${reason.key}`}
-                        checked={selectedRejectionReasons.includes(reason.key as RejectionReason)}
-                        onCheckedChange={(checked) => 
-                          handleRejectionReasonChange(reason.key as RejectionReason, checked as boolean)
-                        }
-                      />
-                      <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        {reason.description}
-                      </span>
-                    </label>
-                  ))}
+              {showReviewNotes && (
+                <div className="grid gap-2">
+                  <Label htmlFor="review-notes">Review Notes (optional)</Label>
+                  <Textarea
+                    id="review-notes"
+                    name="reviewNotes"
+                    autoComplete="off"
+                    placeholder="Add specific notes or context for the creator…"
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    className="min-h-[100px]"
+                  />
                 </div>
               )}
-              </div>
+
+              {showWaveFee && (
+                <label
+                  htmlFor="wave-fee"
+                  className="flex items-start space-x-3 rounded-md border p-3 cursor-pointer hover:bg-muted/50"
+                >
+                  <Checkbox
+                    id="wave-fee"
+                    checked={waveFee}
+                    onCheckedChange={(checked) => setWaveFee(Boolean(checked))}
+                  />
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium leading-none">Wave launch fee</div>
+                    <div className="text-sm text-muted-foreground">
+                      Mark this project&apos;s launch fee as waived when approving it.
+                    </div>
+                  </div>
+                </label>
+              )}
+
+              {showRejectionReasons && (
+                <div className="grid gap-2">
+                  <Label>Rejection Reasons (optional)</Label>
+                  {reasonsLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  ) : reasonsError ? (
+                    <div className="space-y-2">
+                      <Alert variant="destructive">
+                        <AlertDescription>
+                          Failed to load rejection reasons: {reasonsError}
+                        </AlertDescription>
+                      </Alert>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={refetch}
+                        className="w-full"
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-40 overflow-y-auto border rounded-md p-3">
+                      {reasons.map((reason) => (
+                        <label
+                          key={reason.key}
+                          htmlFor={`reason-${reason.key}`}
+                          className="flex items-start space-x-2 rounded-sm p-1 cursor-pointer hover:bg-muted/50"
+                        >
+                          <Checkbox
+                            id={`reason-${reason.key}`}
+                            checked={selectedRejectionReasons.includes(reason.key as RejectionReason)}
+                            onCheckedChange={(checked) =>
+                              handleRejectionReasonChange(reason.key as RejectionReason, checked as boolean)
+                            }
+                          />
+                          <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            {reason.description}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

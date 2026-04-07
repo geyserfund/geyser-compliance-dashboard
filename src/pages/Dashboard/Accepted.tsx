@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import DashboardSearchInput from "@/components/Dashboard/DashboardSearchInput";
+import { useState, useEffect, useRef, useCallback } from "react";
+import DashboardProjectSearch from "@/components/Dashboard/DashboardProjectSearch";
 import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
 import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
 import {
@@ -17,7 +17,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 const ITEMS_PER_PAGE = 20;
 
 const AcceptedProjectsPage = () => {
-  const [searchQuery, setSearchQuery] = useState("");
   const isFetchingMore = useRef(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [hasPotentiallyMoreData, setHasPotentiallyMoreData] = useState(true);
@@ -120,37 +119,19 @@ const AcceptedProjectsPage = () => {
     }
   }, [initialLoadComplete, loadMoreInView, loadMoreProjects]);
 
-  const filteredProjects: ProjectFieldsFragment[] = useMemo(() => {
-    const lowercaseQuery = searchQuery.toLowerCase().trim();
-    if (lowercaseQuery === "") return projectsData;
-    return projectsData.filter(
-      (project) =>
-        project.title.toLowerCase().includes(lowercaseQuery) ||
-        (project.name && project.name.toLowerCase().includes(lowercaseQuery))
-    );
-  }, [projectsData, searchQuery]);
-
   const handleRenderedCountChange = useCallback((count: number) => {
     setRenderedProjectCount(count);
   }, []);
 
   useEffect(() => {
     if (renderedProjectCount === null) {
-      setRenderedProjectCount(filteredProjects.length);
+      setRenderedProjectCount(projectsData.length);
     }
-  }, [filteredProjects.length, renderedProjectCount]);
+  }, [projectsData.length, renderedProjectCount]);
 
   return (
     <div className="space-y-6">
-      <DashboardToolbar
-        right={
-          <DashboardSearchInput
-            placeholder="Search projects..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        }
-      />
+      <DashboardToolbar right={<DashboardProjectSearch />} />
 
       <div>
         <h2 className="text-xl font-semibold mb-4">
@@ -167,8 +148,10 @@ const AcceptedProjectsPage = () => {
           <ProjectsTableSkeleton />
         ) : (
           <AllProjectsTable
-            projects={filteredProjects}
+            projects={projectsData}
             onRenderedCountChange={handleRenderedCountChange}
+            showLaunchPlan
+            showWaveFeeAction
           />
         )}
 

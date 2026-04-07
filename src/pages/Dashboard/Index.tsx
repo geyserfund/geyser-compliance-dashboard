@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import DashboardSearchInput from "@/components/Dashboard/DashboardSearchInput";
+import { useState, useEffect, useRef, useCallback } from "react";
+import DashboardProjectSearch from "@/components/Dashboard/DashboardProjectSearch";
 import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
 import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
 import { 
@@ -20,7 +20,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 const ITEMS_PER_PAGE = 20;
 
 const DashboardPage = () => {
-  const [searchQuery, setSearchQuery] = useState("");
   const isFetchingMore = useRef(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   // State to track if the last fetch indicated more data might exist
@@ -138,42 +137,20 @@ const DashboardPage = () => {
     }
   }, [initialLoadComplete, loadMoreInView, loadMoreProjects]); // Simplified dependencies
 
-  const filteredProjects: ProjectFieldsFragment[] = useMemo(() => {
-    const lowercaseQuery = searchQuery.toLowerCase().trim();
-    if (lowercaseQuery === "") return projectsData;
-    return projectsData.filter(project =>
-      project.title.toLowerCase().includes(lowercaseQuery) ||
-      (project.name && project.name.toLowerCase().includes(lowercaseQuery))
-    );
-  }, [projectsData, searchQuery]);
-
   // Callback for ProjectsTable to report its visible count
   const handleRenderedCountChange = useCallback((count: number) => {
     setRenderedProjectCount(count);
   }, []);
 
-  // Update initial rendered count when filteredProjects changes (e.g., due to search)
   useEffect(() => {
-    // Only set if not null, to avoid flicker before ProjectsTable reports back
     if (renderedProjectCount === null) {
-       setRenderedProjectCount(filteredProjects.length);
+       setRenderedProjectCount(projectsData.length);
     }
-    // We actually want ProjectsTable to be the source of truth once it mounts
-    // and filters. So maybe don't set it here initially? Let's see.
-    // Let ProjectsTable report the count initially via its useEffect.
-  }, [filteredProjects.length, renderedProjectCount]); // Only trigger if search filter changes length
+  }, [projectsData.length, renderedProjectCount]);
 
   return (
     <div className="space-y-6">
-      <DashboardToolbar
-        right={
-          <DashboardSearchInput
-            placeholder="Search projects..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        }
-      />
+      <DashboardToolbar right={<DashboardProjectSearch />} />
 
       <div>
         <h2 className="text-xl font-semibold mb-4">
@@ -190,7 +167,7 @@ const DashboardPage = () => {
           <ProjectsTableSkeleton />
         ) : (
           <ProjectsTable 
-            projects={filteredProjects}
+            projects={projectsData}
             onRenderedCountChange={handleRenderedCountChange}
           />
         )}

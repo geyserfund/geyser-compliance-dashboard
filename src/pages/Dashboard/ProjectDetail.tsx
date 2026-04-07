@@ -56,7 +56,8 @@ export const ProjectDetail: React.FC = () => {
     projectId: string,
     reviewStatus: ProjectReviewStatusInput,
     rejectionReasons?: RejectionReason[],
-    reviewNotes?: string
+    reviewNotes?: string,
+    waveFee?: boolean
   ) => {
     try {
       await submitReview({
@@ -66,6 +67,7 @@ export const ProjectDetail: React.FC = () => {
             status: reviewStatus,
             rejectionReasons: rejectionReasons || [],
             reviewNotes,
+            waveFee,
           },
         },
       })

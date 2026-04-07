@@ -3258,6 +3258,7 @@ export type ProjectReviewSubmitInput = {
   rejectionReasons?: InputMaybe<Array<RejectionReason>>;
   reviewNotes?: InputMaybe<Scalars['String']['input']>;
   status: ProjectReviewStatusInput;
+  waveFee?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type ProjectReward = {
@@ -7943,7 +7944,7 @@ export type ProjectStatusUpdateMutationVariables = Exact<{
 
 export type ProjectStatusUpdateMutation = { __typename?: 'Mutation', projectStatusUpdate: { __typename?: 'Project', id: any, status?: ProjectStatus | null, launchedAt?: any | null, preLaunchedAt?: any | null } };
 
-export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, fundingStrategy?: ProjectFundingStrategy | null, rejectionReason?: string | null, createdAt: any, launchedAt?: any | null, preLaunchedAt?: any | null, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string, email?: string | null } }>, reviews: Array<{ __typename?: 'ProjectReview', id: any, projectId: any, status: ProjectReviewStatus, version: number, reviewNotes?: string | null, rejectionReasons: Array<string>, reviewedAt?: any | null, createdAt: any, updatedAt: any }> };
+export type ProjectFieldsFragment = { __typename?: 'Project', id: any, title: string, name: string, status?: ProjectStatus | null, fundingStrategy?: ProjectFundingStrategy | null, launchStrategy?: string | null, paidLaunch?: boolean | null, rejectionReason?: string | null, createdAt: any, launchedAt?: any | null, preLaunchedAt?: any | null, owners: Array<{ __typename?: 'Owner', user: { __typename?: 'User', id: any, username: string, email?: string | null } }>, reviews: Array<{ __typename?: 'ProjectReview', id: any, projectId: any, status: ProjectReviewStatus, version: number, reviewNotes?: string | null, rejectionReasons: Array<string>, reviewedAt?: any | null, createdAt: any, updatedAt: any }> };
 
 export type ProjectGetQueryVariables = Exact<{
   where: UniqueProjectQueryInput;
@@ -7972,6 +7973,8 @@ export const ProjectFieldsFragmentDoc = gql`
   name
   status
   fundingStrategy
+  launchStrategy
+  paidLaunch
   rejectionReason
   owners {
     user {

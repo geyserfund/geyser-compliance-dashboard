@@ -1,6 +1,6 @@
 import { gql, useMutation, useQuery } from "@apollo/client";
 import { useMemo, useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ChevronDown } from "lucide-react";
 
 import DashboardPageHeader from "@/components/Dashboard/DashboardPageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,9 +14,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -27,6 +32,7 @@ import {
   PaymentStatus,
   type PaymentConfirmInput,
   type PaymentGetInput,
+  type PaymentRefundCompleteInput,
 } from "@/types/generated/graphql";
 
 const PAYMENT_BY_UUID_QUERY = gql`
@@ -39,6 +45,7 @@ const PAYMENT_BY_UUID_QUERY = gql`
       status
       failureReason
       createdAt
+      accountingAmountDue
       paymentAmount
       paymentCurrency
     }
@@ -54,6 +61,15 @@ const PAYMENT_CONFIRM_MUTATION = gql`
   }
 `;
 
+const PAYMENT_REFUND_COMPLETE_MUTATION = gql`
+  mutation AdminPaymentRefundComplete($input: PaymentRefundCompleteInput!) {
+    paymentRefundComplete(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
 const PAYMENTS_BY_LINKED_ENTITY_UUID_QUERY = gql`
   query AdminPaymentsByLinkedEntityUuid($input: PaymentsGetInput) {
     paymentsGet(input: $input) {
@@ -65,6 +81,7 @@ const PAYMENTS_BY_LINKED_ENTITY_UUID_QUERY = gql`
         status
         failureReason
         createdAt
+        accountingAmountDue
         paymentAmount
         paymentCurrency
       }
@@ -81,6 +98,7 @@ interface PaymentByUuidQueryData {
     status: PaymentStatus;
     failureReason?: string | null;
     createdAt: string;
+    accountingAmountDue: number;
     paymentAmount: number;
     paymentCurrency: PaymentCurrency;
   } | null;
@@ -98,6 +116,7 @@ interface PaymentRecord {
   status: PaymentStatus;
   failureReason?: string | null;
   createdAt: string;
+  accountingAmountDue: number;
   paymentAmount: number;
   paymentCurrency: PaymentCurrency;
 }
@@ -123,17 +142,7 @@ interface PaymentsByLinkedEntityUuidVariables {
 }
 
 type SearchMode = "payment_uuid" | "linked_entity_uuid";
-
-const statusToBadgeVariant = (
-  status: PaymentStatus
-): "default" | "secondary" | "destructive" | "outline" => {
-  if (status === PaymentStatus.Paid) return "default";
-  if (status === PaymentStatus.Failed || status === PaymentStatus.Canceled) {
-    return "destructive";
-  }
-  if (status === PaymentStatus.Pending) return "secondary";
-  return "outline";
-};
+type MarkAsAction = "PAID" | "REFUNDED";
 
 const formatStatus = (status: PaymentStatus): string => {
   return status
@@ -150,7 +159,11 @@ const formatEntityType = (value: PaymentLinkedEntityType): string => {
 };
 
 const isPaymentConfirmable = (status: PaymentStatus): boolean => {
-  return status === PaymentStatus.Claimable;
+  return String(status) === "CLAIMABLE";
+};
+
+const isPaymentRefundable = (status: PaymentStatus): boolean => {
+  return String(status) === "REFUNDABLE";
 };
 
 const toAmountCurrency = (paymentCurrency: PaymentCurrency): AmountCurrency => {
@@ -167,6 +180,7 @@ const PaymentsPage = () => {
   const [searchedUuid, setSearchedUuid] = useState("");
   const [confirmingPaymentUuid, setConfirmingPaymentUuid] = useState<string | null>(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<MarkAsAction | null>(null);
 
   const paymentQuery = useQuery<PaymentByUuidQueryData, PaymentByUuidQueryVariables>(
     PAYMENT_BY_UUID_QUERY,
@@ -200,6 +214,9 @@ const PaymentsPage = () => {
   const [confirmPaymentMutation, { loading: confirmLoading }] = useMutation(
     PAYMENT_CONFIRM_MUTATION
   );
+  const [refundCompleteMutation, { loading: refundLoading }] = useMutation(
+    PAYMENT_REFUND_COMPLETE_MUTATION
+  );
 
   const payment =
     searchMode === "payment_uuid"
@@ -215,24 +232,35 @@ const PaymentsPage = () => {
     searchMode === "payment_uuid"
       ? paymentQuery.loading
       : paymentByLinkedEntityUuidQuery.loading;
+  const isMutationLoading = confirmLoading || refundLoading;
 
-  const confirmPayment = async () => {
-    if (!payment) return;
-
-    const input: PaymentConfirmInput = {
-      uuid: payment.uuid,
-      amount: payment.paymentAmount,
-      amountCurrency: toAmountCurrency(payment.paymentCurrency),
-    };
+  const markPayment = async () => {
+    if (!payment || !pendingAction) return;
 
     try {
       setConfirmingPaymentUuid(payment.uuid);
-      await confirmPaymentMutation({ variables: { input } });
+
+      if (pendingAction === "PAID") {
+        const confirmInput: PaymentConfirmInput = {
+          uuid: payment.uuid,
+          amount: payment.accountingAmountDue,
+          amountCurrency: toAmountCurrency(payment.paymentCurrency),
+        };
+        await confirmPaymentMutation({ variables: { input: confirmInput } });
+      } else {
+        const refundInput: PaymentRefundCompleteInput = {
+          paymentRefundId: payment.id,
+        };
+        await refundCompleteMutation({ variables: { input: refundInput } });
+      }
+
       setConfirmModalOpen(false);
+      setPendingAction(null);
       toast({
-        title: "Payment confirmed",
-        description: `Payment ${payment.uuid} was confirmed.`,
+        title: "Payment updated",
+        description: `Payment ${payment.uuid} was marked as ${pendingAction.toLowerCase()}.`,
       });
+
       if (searchMode === "payment_uuid") {
         await paymentQuery.refetch();
       } else {
@@ -240,7 +268,7 @@ const PaymentsPage = () => {
       }
     } catch (error) {
       toast({
-        title: "Failed to confirm payment",
+        title: "Failed to update payment",
         description: error instanceof Error ? error.message : "An unexpected error occurred.",
         variant: "destructive",
       });
@@ -340,15 +368,51 @@ const PaymentsPage = () => {
       {payment ? (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between gap-2">
-              <span className="font-mono text-sm">{payment.uuid}</span>
-              <Badge variant={statusToBadgeVariant(payment.status)}>
-                {formatStatus(payment.status)}
-              </Badge>
-            </CardTitle>
+            <div className="flex items-start justify-between gap-3">
+              <CardTitle className="font-mono text-sm">{payment.uuid}</CardTitle>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    disabled={
+                      (!isPaymentConfirmable(payment.status) &&
+                        !isPaymentRefundable(payment.status)) ||
+                      isMutationLoading ||
+                      confirmingPaymentUuid === payment.uuid
+                    }
+                  >
+                    {confirmingPaymentUuid === payment.uuid ? "Updating..." : "Mark as"}
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    disabled={!isPaymentConfirmable(payment.status)}
+                    onClick={() => {
+                      setPendingAction("PAID");
+                      setConfirmModalOpen(true);
+                    }}
+                  >
+                    Paid
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!isPaymentRefundable(payment.status)}
+                    onClick={() => {
+                      setPendingAction("REFUNDED");
+                      setConfirmModalOpen(true);
+                    }}
+                  >
+                    Refunded
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <p className="text-muted-foreground">Status</p>
+                <p>{formatStatus(payment.status)}</p>
+              </div>
               <div>
                 <p className="text-muted-foreground">Linked Entity Type</p>
                 <p>{formatEntityType(payment.linkedEntityType)}</p>
@@ -366,19 +430,6 @@ const PaymentsPage = () => {
                 <p>{payment.createdAt}</p>
               </div>
             </div>
-
-            <div className="pt-2">
-              <Button
-                onClick={() => setConfirmModalOpen(true)}
-                disabled={
-                  !isPaymentConfirmable(payment.status) ||
-                  confirmLoading ||
-                  confirmingPaymentUuid === payment.uuid
-                }
-              >
-                {confirmingPaymentUuid === payment.uuid ? "Confirming..." : "Confirm"}
-              </Button>
-            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -386,27 +437,33 @@ const PaymentsPage = () => {
       <AlertDialog
         open={confirmModalOpen}
         onOpenChange={(open) => {
-          if (!confirmLoading) setConfirmModalOpen(open);
+          if (!isMutationLoading) {
+            setConfirmModalOpen(open);
+            if (!open) setPendingAction(null);
+          }
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm payment?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Mark payment as {pendingAction === "REFUNDED" ? "refunded" : "paid"}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
               This will mark payment{" "}
-              <span className="font-mono">{payment?.uuid ?? "-"}</span> as paid.
+              <span className="font-mono">{payment?.uuid ?? "-"}</span> as{" "}
+              {pendingAction === "REFUNDED" ? "refunded" : "paid"}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={confirmLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isMutationLoading}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={confirmLoading}
+              disabled={isMutationLoading || !pendingAction}
               onClick={(event) => {
                 event.preventDefault();
-                void confirmPayment();
+                void markPayment();
               }}
             >
-              {confirmLoading ? "Confirming..." : "Confirm payment"}
+              {isMutationLoading ? "Updating..." : "Confirm"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

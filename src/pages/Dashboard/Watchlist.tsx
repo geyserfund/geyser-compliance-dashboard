@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import DashboardSearchInput from "@/components/Dashboard/DashboardSearchInput";
+import DashboardProjectSearch from "@/components/Dashboard/DashboardProjectSearch";
 import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
 import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
 import {
@@ -25,7 +25,6 @@ const getWatchlist = (): string[] => {
 };
 
 const WatchlistPage = () => {
-  const [searchQuery, setSearchQuery] = useState("");
   const [watchlistIds, setWatchlistIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -48,28 +47,13 @@ const WatchlistPage = () => {
   const currentWatchlistIds = getWatchlist();
   const projectsStillInWatchlist = fetchedProjects.filter(p => currentWatchlistIds.includes(p.id));
 
-  const filteredProjects = searchQuery.trim() === ""
-    ? projectsStillInWatchlist
-    : projectsStillInWatchlist.filter(project =>
-        project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (project.name && project.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-
   return (
     <div className="space-y-6">
-      <DashboardToolbar
-        right={
-          <DashboardSearchInput
-            placeholder="Search watchlist..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        }
-      />
+      <DashboardToolbar right={<DashboardProjectSearch />} />
 
       <div>
         <h2 className="text-xl font-semibold mb-4">
-            Watchlisted Projects ({loading ? 'Loading...' : filteredProjects.length})
+            Watchlisted Projects ({loading ? 'Loading...' : projectsStillInWatchlist.length})
         </h2>
         {error && (
           <Alert variant="destructive" className="mb-4">
@@ -78,12 +62,12 @@ const WatchlistPage = () => {
             </AlertDescription>
           </Alert>
         )}
-        {loading && filteredProjects.length === 0 && watchlistIds.length > 0 && (
+        {loading && projectsStillInWatchlist.length === 0 && watchlistIds.length > 0 && (
            <ProjectsTableSkeleton rows={3} />
          )}
-         {(!loading || filteredProjects.length > 0) && (
+         {(!loading || projectsStillInWatchlist.length > 0) && (
              <AllProjectsTable
-               projects={filteredProjects}
+               projects={projectsStillInWatchlist}
              />
          )}
          {!loading && watchlistIds.length === 0 && (

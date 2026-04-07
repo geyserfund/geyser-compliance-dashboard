@@ -11,7 +11,7 @@ interface ProjectsTableSkeletonProps {
 
 const ProjectsTableSkeleton = ({
   rows = 5,
-  columns = [200, 100, 120, 200, 200, 120, 100, 50],
+  columns = [200, 100, 120, 140, 120, 50, 80, 80, 120],
   className,
 }: ProjectsTableSkeletonProps) => {
   const normalizedColumns = React.useMemo(
