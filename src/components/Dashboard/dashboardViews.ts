@@ -6,11 +6,6 @@ export type DashboardView = {
 
 export const dashboardViews: DashboardView[] = [
   {
-    to: "/dashboard",
-    label: "Unreviewed Projects",
-    end: true,
-  },
-  {
     to: "/dashboard/in-review",
     label: "In Review",
   },
@@ -19,8 +14,12 @@ export const dashboardViews: DashboardView[] = [
     label: "Accepted",
   },
   {
+    to: "/dashboard/projects-with-feedback",
+    label: "Projects with Feedback",
+  },
+  {
     to: "/dashboard/recent",
-    label: "Recent Projects",
+    label: "Recently Launched",
   },
   {
     to: "/dashboard/watchlist",

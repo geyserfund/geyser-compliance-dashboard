@@ -3,11 +3,17 @@ services:
     container_name: geyser-compliance-dashboard
     image: oven/bun:1-alpine
     # platform: linux/arm64 
-    command:  sh -c "RUN_DOCKER=true && bun install && bun run dev"
+    command: >
+      sh -c "RUN_DOCKER=true &&
+      apk add --no-cache nodejs npm &&
+      bun install &&
+      NETLIFY_DISABLE_EDGE_FUNCTIONS=1 NETLIFY_USE_DENO=0
+      npx -y netlify-cli@17 dev --offline --port 3003 --target-port 5173
+      --command 'bun run dev -- --host 0.0.0.0 --port 5173'"
     working_dir: /usr/app
     env_file: .env
     ports:
-      - "3003:3003"
+      - "5173:5173"
     networks:
       - shared-net
     restart: unless-stopped

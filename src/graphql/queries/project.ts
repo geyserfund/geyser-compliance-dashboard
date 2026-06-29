@@ -11,6 +11,17 @@ const PROJECT_FIELDS_FRAGMENT = gql`
     fundingStrategy
     launchStrategy
     paidLaunch
+    feedbackSuggestion {
+      launchStrategy
+      status
+      summary
+      mainIssue
+      feedbackPoints
+      emailSubject
+      emailBodyText
+      generatedAt
+      failureReason
+    }
     rejectionReason # Added this field
     owners {
       user {
@@ -26,6 +37,17 @@ const PROJECT_FIELDS_FRAGMENT = gql`
       version
       reviewNotes
       rejectionReasons
+      complianceSuggestion {
+        status
+        recommendedStatus
+        noteToCreator
+        reasons
+        feedback
+        model
+        termsUrl
+        generatedAt
+        failureReason
+      }
       reviewedAt
       createdAt
       updatedAt

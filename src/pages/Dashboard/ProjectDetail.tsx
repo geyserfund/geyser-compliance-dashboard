@@ -10,6 +10,7 @@ import {
 import ProjectReviewModal from "@/components/Dashboard/ProjectReviewModal"
 import { ReviewTimeline } from "@/components/Dashboard/ReviewTimeline"
 import { ProjectStatusBadge } from "@/components/Dashboard/StatusBadge"
+import AiReviewSuggestionPanel from "@/components/Dashboard/AiReviewSuggestionPanel"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -218,6 +219,8 @@ export const ProjectDetail: React.FC = () => {
         </CardContent>
       </Card>
 
+      <AiReviewSuggestionPanel project={project} />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Review History</CardTitle>
@@ -234,6 +237,7 @@ export const ProjectDetail: React.FC = () => {
         isOpen={showReviewModal}
         onOpenChange={setShowReviewModal}
         projectId={project.id.toString()}
+        project={project}
         onSubmit={handleReviewSubmit}
         isLoading={submittingReview}
       />

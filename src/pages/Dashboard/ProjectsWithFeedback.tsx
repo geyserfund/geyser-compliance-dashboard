@@ -2,21 +2,20 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import DashboardProjectSearch from "@/components/Dashboard/DashboardProjectSearch";
 import DashboardToolbar from "@/components/Dashboard/DashboardToolbar";
 import ProjectsTableSkeleton from "@/components/Dashboard/ProjectsTableSkeleton";
-import { 
-  useProjectsGetQuery, 
+import {
+  useProjectsGetQuery,
   ProjectFieldsFragment,
-  OrderByDirection, 
-  ProjectsOrderByField
+  OrderByDirection,
+  ProjectsOrderByField,
 } from "@/types/generated/graphql";
 import { AllProjectsTable } from "@/components/Dashboard/ProjectsTable";
-import { useInView } from 'react-intersection-observer';
+import { useInView } from "react-intersection-observer";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ITEMS_PER_PAGE = 20;
 
-// Rename component
-const RecentProjectsPage = () => { 
+const ProjectsWithFeedbackPage = () => {
   const isFetchingMore = useRef(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [hasPotentiallyMoreData, setHasPotentiallyMoreData] = useState(true);
@@ -24,16 +23,20 @@ const RecentProjectsPage = () => {
 
   const { ref: loadMoreRef, inView: loadMoreInView } = useInView({
     threshold: 0,
-    rootMargin: '200px',
+    rootMargin: "200px",
   });
+
+  const queryInput = {
+    where: {
+      hasFeedbackSuggestion: true,
+    },
+    orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
+    pagination: { take: ITEMS_PER_PAGE },
+  };
 
   const { data, loading, error, fetchMore } = useProjectsGetQuery({
     variables: {
-      input: {
-        where: {},
-        orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
-        pagination: { take: ITEMS_PER_PAGE }
-      }
+      input: queryInput,
     },
     notifyOnNetworkStatusChange: true,
     onCompleted: (completedData) => {
@@ -64,23 +67,22 @@ const RecentProjectsPage = () => {
       await fetchMore({
         variables: {
           input: {
-            where: {},
-            orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
+            ...queryInput,
             pagination: {
               take: ITEMS_PER_PAGE,
-              ...(lastProjectId ? { cursor: { id: lastProjectId } } : {})
-            }
-          }
+              ...(lastProjectId ? { cursor: { id: lastProjectId } } : {}),
+            },
+          },
         },
         updateQuery: (prev, { fetchMoreResult }) => {
           if (!fetchMoreResult?.projectsGet) {
-            setHasPotentiallyMoreData(false); 
+            setHasPotentiallyMoreData(false);
             return prev;
           }
 
           const prevProjects = prev.projectsGet?.projects || [];
           const newProjects = fetchMoreResult.projectsGet.projects || [];
-          
+
           if (newProjects.length < ITEMS_PER_PAGE) {
             setHasPotentiallyMoreData(false);
           } else {
@@ -89,31 +91,32 @@ const RecentProjectsPage = () => {
 
           const combinedProjects = [...prevProjects, ...newProjects];
           const uniqueProjects = Array.from(
-            new Map(combinedProjects.map(p => [p.id, p])).values()
+            new Map(combinedProjects.map((project) => [project.id, project])).values(),
           );
-          if(uniqueProjects.length < combinedProjects.length) {
+
+          if (uniqueProjects.length < combinedProjects.length) {
             console.warn("updateQuery: Duplicates detected. Ensure backend cursor logic is robust.");
           }
 
           return {
             projectsGet: {
               __typename: prev.projectsGet?.__typename,
-              projects: uniqueProjects, 
-            }
+              projects: uniqueProjects,
+            },
           };
-        }
+        },
       });
     } catch (err) {
       console.error("Failed to fetch more projects:", err);
-      setHasPotentiallyMoreData(false); 
+      setHasPotentiallyMoreData(false);
     } finally {
       isFetchingMore.current = false;
     }
-  }, [fetchMore, hasPotentiallyMoreData, loading, projectsData]);
+  }, [fetchMore, hasPotentiallyMoreData, loading, projectsData, queryInput]);
 
   useEffect(() => {
     if (initialLoadComplete && loadMoreInView) {
-      void loadMoreProjects(); 
+      void loadMoreProjects();
     }
   }, [initialLoadComplete, loadMoreInView, loadMoreProjects]);
 
@@ -123,7 +126,7 @@ const RecentProjectsPage = () => {
 
   useEffect(() => {
     if (renderedProjectCount === null) {
-       setRenderedProjectCount(projectsData.length);
+      setRenderedProjectCount(projectsData.length);
     }
   }, [projectsData.length, renderedProjectCount]);
 
@@ -133,39 +136,35 @@ const RecentProjectsPage = () => {
 
       <div>
         <h2 className="text-xl font-semibold mb-4">
-          Recently Launched ({loading && renderedProjectCount === null ? 'Loading...' : renderedProjectCount ?? 0})
+          Projects with Feedback ({loading && renderedProjectCount === null ? "Loading..." : renderedProjectCount ?? 0})
         </h2>
         {error && (
           <Alert variant="destructive">
-            <AlertDescription>
-              Error loading projects: {error.message}
-            </AlertDescription>
+            <AlertDescription>Error loading projects: {error.message}</AlertDescription>
           </Alert>
         )}
 
         {loading && projectsData.length === 0 ? (
           <ProjectsTableSkeleton />
         ) : (
-          <AllProjectsTable 
+          <AllProjectsTable
             projects={projectsData}
             onRenderedCountChange={handleRenderedCountChange}
             showLaunchPlan
+            showSuggestedFeedback
             showReviewAction={false}
           />
         )}
 
-        <div ref={loadMoreRef} style={{ height: '10px' }} />
+        <div ref={loadMoreRef} style={{ height: "10px" }} />
 
         {(loading || isFetchingMore.current) && projectsData.length > 0 && (
-           <p className="text-center text-muted-foreground py-4">Loading more...</p>
+          <p className="text-center text-muted-foreground py-4">Loading more...</p>
         )}
 
         {!loading && !isFetchingMore.current && hasPotentiallyMoreData && projectsData.length > 0 && (
           <div className="text-center py-4">
-            <Button 
-              onClick={loadMoreProjects}
-              disabled={loading || isFetchingMore.current}
-            >
+            <Button onClick={loadMoreProjects} disabled={loading || isFetchingMore.current}>
               Load older projects
             </Button>
           </div>
@@ -179,5 +178,4 @@ const RecentProjectsPage = () => {
   );
 };
 
-// Update export
-export default RecentProjectsPage; 
+export default ProjectsWithFeedbackPage;

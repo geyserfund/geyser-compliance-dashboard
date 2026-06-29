@@ -29,6 +29,7 @@ import {
 } from "@/components/Dashboard/StatusBadge";
 import { ExternalLink, Star, Copy, FileText, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ProjectFeedbackSuggestionModal from "./ProjectFeedbackSuggestionModal";
 
 const LOCAL_STORAGE_WATCHLIST_KEY = "dashboardWatchlist";
 const LOCAL_STORAGE_REVIEWED_KEY = "dashboardReviewed";
@@ -142,7 +143,9 @@ interface ProjectsTableProps {
   projects: ProjectFieldsFragment[];
   onRenderedCountChange?: (count: number) => void;
   showLaunchPlan?: boolean;
+  showSuggestedFeedback?: boolean;
   showWaveFeeAction?: boolean;
+  showReviewAction?: boolean;
   sortableStatus?: boolean;
   sortableCreatedAt?: boolean;
 }
@@ -154,8 +157,11 @@ interface ProjectsTableBaseProps extends ProjectsTableProps {
 
 interface ModalState {
   isOpen: boolean;
-  projectId: string | null;
+  project: ProjectFieldsFragment | null;
 }
+
+const isEligibleProjectFeedbackStrategy = (launchStrategy: string | null | undefined): boolean =>
+  launchStrategy === "GROWTH_LAUNCH" || launchStrategy === "PRO_LAUNCH";
 
 type SortDirection = "asc" | "desc";
 
@@ -165,7 +171,9 @@ const ProjectsTableBase = ({
   disableReviewedFilter = false,
   showReviewStatus = false,
   showLaunchPlan = false,
+  showSuggestedFeedback = false,
   showWaveFeeAction = false,
+  showReviewAction = true,
   sortableStatus = false,
   sortableCreatedAt = false,
 }: ProjectsTableBaseProps) => {
@@ -173,7 +181,11 @@ const ProjectsTableBase = ({
   const navigate = useNavigate();
   const [modalState, setModalState] = useState<ModalState>({ 
     isOpen: false, 
-    projectId: null
+    project: null
+  });
+  const [feedbackModalState, setFeedbackModalState] = useState<ModalState>({
+    isOpen: false,
+    project: null,
   });
   // Local state to track the current watchlist IDs
   const [watchlist, setWatchlist] = useState<string[]>([]); 
@@ -182,6 +194,7 @@ const ProjectsTableBase = ({
   const [waveFeeProjectIds, setWaveFeeProjectIds] = useState<string[]>([]);
   const [statusSortDirection, setStatusSortDirection] = useState<SortDirection>("asc");
   const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>("desc");
+  const showActionColumn = showWaveFeeAction || showReviewAction;
 
   // Load watchlist and reviewed projects from localStorage on mount
   useEffect(() => {
@@ -238,10 +251,17 @@ const ProjectsTableBase = ({
     });
   }, []);
 
-  const handleSubmitReview = (projectId: string) => {
+  const handleSubmitReview = (project: ProjectFieldsFragment) => {
     setModalState({
       isOpen: true,
-      projectId: projectId
+      project
+    });
+  };
+
+  const handleViewFeedback = (project: ProjectFieldsFragment) => {
+    setFeedbackModalState({
+      isOpen: true,
+      project,
     });
   };
 
@@ -272,7 +292,7 @@ const ProjectsTableBase = ({
         title: "Review submitted successfully",
         description: `Project ${projectId} review has been submitted with status ${reviewStatus}.`,
       });
-      setModalState({ isOpen: false, projectId: null });
+      setModalState({ isOpen: false, project: null });
 
     } catch (error) {
       console.error("Failed to submit review:", error);
@@ -442,6 +462,9 @@ const ProjectsTableBase = ({
     e.stopPropagation();
   };
 
+  const emptyStateColspan =
+    7 + (showLaunchPlan ? 1 : 0) + (showSuggestedFeedback ? 1 : 0) + (showActionColumn ? 1 : 0);
+
   return (
     <>
       <div className="rounded-md border">
@@ -494,16 +517,21 @@ const ProjectsTableBase = ({
               <TableHead className="w-[50px]">URL</TableHead>
               <TableHead className="w-[80px]">Watchlist</TableHead>
               <TableHead className="w-[80px]">Copy Email</TableHead>
-              <TableHead className="w-[120px]">
-                {showWaveFeeAction ? "Wave Fee" : "Submit Review"}
-              </TableHead>
+              {showActionColumn ? (
+                <TableHead className="w-[120px]">
+                  {showWaveFeeAction ? "Wave Fee" : "Submit Review"}
+                </TableHead>
+              ) : null}
+              {showSuggestedFeedback ? (
+                <TableHead className="w-[180px]">Suggested Feedback</TableHead>
+              ) : null}
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleProjects.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={showLaunchPlan ? 9 : 8}
+                  colSpan={emptyStateColspan}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {projects.length > 0 ? "All recent projects marked as reviewed or none match filter" : "No projects found"}
@@ -515,6 +543,9 @@ const ProjectsTableBase = ({
                 const latestReview = getLatestReview(project);
                 const submitReviewState = isSubmitReviewDisabled(project);
                 const isWaveFeeApplied = project.paidLaunch || waveFeeProjectIds.includes(project.id);
+                const feedbackSuggestion = project.feedbackSuggestion;
+                const feedbackStatus = feedbackSuggestion?.status;
+                const eligibleForFeedback = isEligibleProjectFeedbackStrategy(project.launchStrategy);
 
                 return (
                   <TableRow 
@@ -577,56 +608,80 @@ const ProjectsTableBase = ({
                         <Copy className="h-4 w-4" />
                       </Button>
                     </TableCell>
-                    <TableCell>
-                      {showWaveFeeAction ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            handleButtonClick(e);
-                            void handleWaveFee(project.id);
-                          }}
-                          disabled={isWaveFeeApplied || reviewSubmitLoading}
-                          aria-label="Wave launch fee for project"
-                        >
-                          {isWaveFeeApplied ? "Fee Paid" : "Wave Fee"}
-                        </Button>
-                      ) : submitReviewState.disabled ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span onClick={handleButtonClick}>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={true}
-                                aria-label="Submit review for project (disabled)"
-                                className="flex items-center gap-1"
-                              >
-                                <FileText className="h-4 w-4" />
-                                Review
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{submitReviewState.reason}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            handleButtonClick(e);
-                            handleSubmitReview(project.id);
-                          }}
-                          aria-label="Submit review for project"
-                          className="flex items-center gap-1"
-                        >
-                          <FileText className="h-4 w-4" />
-                          Review
-                        </Button>
-                      )}
-                    </TableCell>
+                    {showActionColumn ? (
+                      <TableCell>
+                        {showWaveFeeAction ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              handleButtonClick(e);
+                              void handleWaveFee(project.id);
+                            }}
+                            disabled={isWaveFeeApplied || reviewSubmitLoading}
+                            aria-label="Wave launch fee for project"
+                          >
+                            {isWaveFeeApplied ? "Fee Paid" : "Wave Fee"}
+                          </Button>
+                        ) : !showReviewAction ? null : submitReviewState.disabled ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span onClick={handleButtonClick}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={true}
+                                  aria-label="Submit review for project (disabled)"
+                                  className="flex items-center gap-1"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  Review
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{submitReviewState.reason}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              handleButtonClick(e);
+                              handleSubmitReview(project);
+                            }}
+                            aria-label="Submit review for project"
+                            className="flex items-center gap-1"
+                          >
+                            <FileText className="h-4 w-4" />
+                            Review
+                          </Button>
+                        )}
+                      </TableCell>
+                    ) : null}
+                    {showSuggestedFeedback ? (
+                      <TableCell>
+                        {!eligibleForFeedback ? (
+                          "-"
+                        ) : feedbackStatus === "READY" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              handleButtonClick(e);
+                              handleViewFeedback(project);
+                            }}
+                          >
+                            View feedback
+                          </Button>
+                        ) : feedbackStatus === "FAILED" ? (
+                          "Unavailable"
+                        ) : (
+                          "Generating..."
+                        )}
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 );
               })
@@ -637,10 +692,20 @@ const ProjectsTableBase = ({
 
       <ProjectReviewModal
         isOpen={modalState.isOpen}
-        onOpenChange={(open) => setModalState({ ...modalState, isOpen: open })}
-        projectId={modalState.projectId || ''}
+        onOpenChange={(open) =>
+          setModalState({ isOpen: open, project: open ? modalState.project : null })
+        }
+        projectId={modalState.project?.id ? String(modalState.project.id) : ''}
+        project={modalState.project ?? undefined}
         onSubmit={handleReviewSubmit}
         isLoading={reviewSubmitLoading}
+      />
+      <ProjectFeedbackSuggestionModal
+        isOpen={feedbackModalState.isOpen}
+        onOpenChange={(open) =>
+          setFeedbackModalState({ isOpen: open, project: open ? feedbackModalState.project : null })
+        }
+        project={feedbackModalState.project ?? undefined}
       />
     </>
   );

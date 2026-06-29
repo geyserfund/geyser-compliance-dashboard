@@ -18,15 +18,26 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ProjectReviewStatusInput, RejectionReason } from '@/types/generated/graphql';
+import { ProjectFieldsFragment, ProjectReviewStatusInput, RejectionReason } from '@/types/generated/graphql';
 import { useRejectionReasons } from '@/hooks/useRejectionReasons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import AiReviewSuggestionPanel from '@/components/Dashboard/AiReviewSuggestionPanel';
+
+const AI_REASON_TO_REJECTION_REASON: Partial<Record<string, RejectionReason>> = {
+  'Selling a security, promise of returns (crypto token, NFT, etc.)': RejectionReason.SellingSecurity,
+  'Unsupported region (conflict zone, sanctioned country, etc.)': RejectionReason.UnsupportedRegion,
+  'Scam (fake content, fake medical expenses, deceptive or unverifiable claims, etc.)': RejectionReason.Scam,
+  'Spam (irrelevant content, advertising, phishing, low-quality promotional content)': RejectionReason.Spam,
+  'Incomplete project (no clear story, goal, aim, use of funds, or project plan)': RejectionReason.IncompleteProject,
+  'Restricted project type': RejectionReason.RestrictedProjectType,
+};
 
 interface ProjectReviewModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
+  project?: ProjectFieldsFragment;
   onSubmit: (
     projectId: string,
     reviewStatus: ProjectReviewStatusInput,
@@ -41,6 +52,7 @@ const ProjectReviewModal = ({
   isOpen,
   onOpenChange,
   projectId,
+  project,
   onSubmit,
   isLoading,
 }: ProjectReviewModalProps) => {
@@ -78,6 +90,26 @@ const ProjectReviewModal = ({
         return prev.filter(r => r !== reason);
       }
     });
+  };
+
+  const handleApplySuggestion = ({
+    reviewStatus,
+    reviewNotes: suggestedReviewNotes,
+    rejectionReasons: suggestedRejectionReasons,
+  }: {
+    reviewStatus: ProjectReviewStatusInput;
+    reviewNotes: string;
+    rejectionReasons: string[];
+  }) => {
+    setSelectedReviewType(reviewStatus);
+    setSelectedRejectionReasons(
+      suggestedRejectionReasons.flatMap((reason) => {
+        const mappedReason = AI_REASON_TO_REJECTION_REASON[reason];
+        return mappedReason ? [mappedReason] : [];
+      })
+    );
+    setReviewNotes(suggestedReviewNotes);
+    setWaveFee(false);
   };
 
   const showReviewNotes = selectedReviewType !== null;
@@ -118,7 +150,7 @@ const ProjectReviewModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto overscroll-contain">
+      <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Submit Project Review</DialogTitle>
           <DialogDescription className="break-words">
@@ -127,6 +159,19 @@ const ProjectReviewModal = ({
         </DialogHeader>
         
         <div className="grid gap-6 py-4">
+          {project ? (
+            <AiReviewSuggestionPanel
+              project={project}
+              onApply={handleApplySuggestion}
+            />
+          ) : (
+            <Alert>
+              <AlertDescription>
+                AI suggestion is unavailable for this project.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Review Type Selection */}
           <div className="grid gap-2">
             <Label htmlFor="review-type-select">Review Decision</Label>
