@@ -8,6 +8,7 @@ import {
   useProjectReviewSubmitMutation,
 } from "@/types/generated/graphql"
 import ProjectReviewModal from "@/components/Dashboard/ProjectReviewModal"
+import RequestIdentityVerificationModal from "@/components/Dashboard/RequestIdentityVerificationModal"
 import { ReviewTimeline } from "@/components/Dashboard/ReviewTimeline"
 import { ProjectStatusBadge } from "@/components/Dashboard/StatusBadge"
 import AiReviewSuggestionPanel from "@/components/Dashboard/AiReviewSuggestionPanel"
@@ -21,12 +22,28 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowLeft, ExternalLink, FileText, User, Calendar } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { useRequestIdentityVerification } from "@/hooks/useRequestIdentityVerification"
+import {
+  ArrowLeft,
+  ExternalLink,
+  FileText,
+  ShieldCheck,
+  User,
+  Calendar,
+} from "lucide-react"
 
 export const ProjectDetail: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const { toast } = useToast()
   const [showReviewModal, setShowReviewModal] = useState(false)
+  const [showVerificationModal, setShowVerificationModal] = useState(false)
+
+  const {
+    requestIdentityVerification,
+    loading: requestingVerification,
+  } = useRequestIdentityVerification()
 
   const { data, loading, error, refetch } = useProjectGetQuery({
     variables: {
@@ -72,6 +89,31 @@ export const ProjectDetail: React.FC = () => {
       })
     } catch (submitError) {
       console.error("Review submission error:", submitError)
+    }
+  }
+
+  const handleRequestVerification = async (message?: string) => {
+    if (!project) return
+    try {
+      await requestIdentityVerification({
+        projectId: project.id.toString(),
+        message,
+      })
+      setShowVerificationModal(false)
+      toast({
+        title: "ID verification requested",
+        description: `The creator of project ${project.id} has been asked to complete identity verification and notified by email.`,
+      })
+      refetch()
+    } catch (verificationError) {
+      toast({
+        title: "Error requesting ID verification",
+        description:
+          verificationError instanceof Error
+            ? verificationError.message
+            : "An unknown error occurred.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -144,15 +186,25 @@ export const ProjectDetail: React.FC = () => {
           <ArrowLeft className="h-4 w-4" />
           Back to Dashboard
         </Button>
-        {canSubmitReview ? (
+        <div className="flex flex-wrap items-center gap-3">
           <Button
-            onClick={() => setShowReviewModal(true)}
+            variant="outline"
+            onClick={() => setShowVerificationModal(true)}
             className="gap-2"
           >
-            <FileText className="h-4 w-4" />
-            Submit Review
+            <ShieldCheck className="h-4 w-4" />
+            Request ID Verification
           </Button>
-        ) : null}
+          {canSubmitReview ? (
+            <Button
+              onClick={() => setShowReviewModal(true)}
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Submit Review
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <Card>
@@ -245,6 +297,14 @@ export const ProjectDetail: React.FC = () => {
         project={project}
         onSubmit={handleReviewSubmit}
         isLoading={submittingReview}
+      />
+
+      <RequestIdentityVerificationModal
+        isOpen={showVerificationModal}
+        onOpenChange={setShowVerificationModal}
+        projectId={project.id.toString()}
+        onConfirm={handleRequestVerification}
+        isLoading={requestingVerification}
       />
     </div>
   )
