@@ -14,10 +14,6 @@ export const dashboardViews: DashboardView[] = [
     label: "Accepted",
   },
   {
-    to: "/dashboard/projects-with-feedback",
-    label: "Projects with Feedback",
-  },
-  {
     to: "/dashboard/recent",
     label: "Recently Launched",
   },

@@ -7,7 +7,7 @@ import {
   ProjectFieldsFragment,
   OrderByDirection, 
   ProjectsOrderByField,
-  ProjectStatus
+  ProjectsGetWhereInputStatus
 } from "@/types/generated/graphql";
 import { ReviewStatusProjectsTable } from "@/components/Dashboard/ProjectsTable";
 import { useInView } from 'react-intersection-observer';
@@ -29,7 +29,7 @@ const InReviewPage = () => {
   const { data, loading, error, fetchMore } = useProjectsGetQuery({
     variables: {
       input: {
-        where: { statuses: [ProjectStatus.InReview] }, // Only fetch projects in review
+        where: { statuses: [ProjectsGetWhereInputStatus.InReview] }, // Only fetch projects in review
         orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
         pagination: { take: ITEMS_PER_PAGE }
       }
@@ -63,7 +63,7 @@ const InReviewPage = () => {
       await fetchMore({
         variables: {
           input: {
-            where: { statuses: [ProjectStatus.InReview] },
+            where: { statuses: [ProjectsGetWhereInputStatus.InReview] },
             orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
             pagination: {
               take: ITEMS_PER_PAGE,

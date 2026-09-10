@@ -7,7 +7,7 @@ import {
   ProjectFieldsFragment,
   OrderByDirection,
   ProjectsOrderByField,
-  ProjectStatus,
+  ProjectsGetWhereInputStatus,
 } from "@/types/generated/graphql";
 import { AllProjectsTable } from "@/components/Dashboard/ProjectsTable";
 import { useInView } from "react-intersection-observer";
@@ -31,7 +31,7 @@ const AcceptedProjectsPage = () => {
   const { data, loading, error, fetchMore } = useProjectsGetQuery({
     variables: {
       input: {
-        where: { statuses: [ProjectStatus.Accepted] },
+        where: { statuses: [ProjectsGetWhereInputStatus.Accepted] },
         orderBy: [
           { field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc },
         ],
@@ -67,7 +67,7 @@ const AcceptedProjectsPage = () => {
       await fetchMore({
         variables: {
           input: {
-            where: { statuses: [ProjectStatus.Accepted] },
+            where: { statuses: [ProjectsGetWhereInputStatus.Accepted] },
             orderBy: [
               { field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc },
             ],
@@ -150,8 +150,7 @@ const AcceptedProjectsPage = () => {
           <AllProjectsTable
             projects={projectsData}
             onRenderedCountChange={handleRenderedCountChange}
-            showLaunchPlan
-            showWaveFeeAction
+            showReviewAction={false}
           />
         )}
 

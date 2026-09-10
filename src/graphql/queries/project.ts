@@ -9,19 +9,6 @@ const PROJECT_FIELDS_FRAGMENT = gql`
     name # Needed for URL generation if not directly available
     status
     fundingStrategy
-    launchStrategy
-    paidLaunch
-    feedbackSuggestion {
-      launchStrategy
-      status
-      summary
-      mainIssue
-      feedbackPoints
-      emailSubject
-      emailBodyText
-      generatedAt
-      failureReason
-    }
     rejectionReason # Added this field
     owners {
       user {

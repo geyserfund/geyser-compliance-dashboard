@@ -149,7 +149,6 @@ const RecentProjectsPage = () => {
           <AllProjectsTable 
             projects={projectsData}
             onRenderedCountChange={handleRenderedCountChange}
-            showLaunchPlan
             showReviewAction={false}
           />
         )}

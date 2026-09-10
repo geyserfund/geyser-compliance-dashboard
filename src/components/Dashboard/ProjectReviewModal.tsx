@@ -42,8 +42,7 @@ interface ProjectReviewModalProps {
     projectId: string,
     reviewStatus: ProjectReviewStatusInput,
     rejectionReasons?: RejectionReason[],
-    reviewNotes?: string,
-    waveFee?: boolean
+    reviewNotes?: string
   ) => void;
   isLoading: boolean;
 }
@@ -59,7 +58,6 @@ const ProjectReviewModal = ({
   const [selectedReviewType, setSelectedReviewType] = useState<ProjectReviewStatusInput | null>(null);
   const [selectedRejectionReasons, setSelectedRejectionReasons] = useState<RejectionReason[]>([]);
   const [reviewNotes, setReviewNotes] = useState<string>('');
-  const [waveFee, setWaveFee] = useState(false);
   const { reasons, loading: reasonsLoading, error: reasonsError, refetch } = useRejectionReasons();
 
   const handleSubmit = () => {
@@ -68,8 +66,7 @@ const ProjectReviewModal = ({
         projectId, 
         selectedReviewType, 
         selectedRejectionReasons.length > 0 ? selectedRejectionReasons : undefined,
-        reviewNotes?.trim() ? reviewNotes.trim() : undefined,
-        waveFee
+        reviewNotes?.trim() ? reviewNotes.trim() : undefined
       );
     }
   };
@@ -78,7 +75,6 @@ const ProjectReviewModal = ({
     setSelectedReviewType(null);
     setSelectedRejectionReasons([]);
     setReviewNotes('');
-    setWaveFee(false);
     onOpenChange(false);
   };
 
@@ -109,11 +105,9 @@ const ProjectReviewModal = ({
       })
     );
     setReviewNotes(suggestedReviewNotes);
-    setWaveFee(false);
   };
 
   const showReviewNotes = selectedReviewType !== null;
-  const showWaveFee = selectedReviewType === ProjectReviewStatusInput.Accepted;
 
   // Check if rejection reasons should be shown
   const showRejectionReasons = selectedReviewType === ProjectReviewStatusInput.Rejected || 
@@ -182,7 +176,6 @@ const ProjectReviewModal = ({
                 // Clear rejection reasons when changing review type
                 setSelectedRejectionReasons([]);
                 setReviewNotes('');
-                setWaveFee(false);
               }}
             >
               <SelectTrigger id="review-type-select">
@@ -227,25 +220,6 @@ const ProjectReviewModal = ({
                     className="min-h-[100px]"
                   />
                 </div>
-              )}
-
-              {showWaveFee && (
-                <label
-                  htmlFor="wave-fee"
-                  className="flex items-start space-x-3 rounded-md border p-3 cursor-pointer hover:bg-muted/50"
-                >
-                  <Checkbox
-                    id="wave-fee"
-                    checked={waveFee}
-                    onCheckedChange={(checked) => setWaveFee(Boolean(checked))}
-                  />
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium leading-none">Wave launch fee</div>
-                    <div className="text-sm text-muted-foreground">
-                      Mark this project&apos;s launch fee as waived when approving it.
-                    </div>
-                  </div>
-                </label>
               )}
 
               {showRejectionReasons && (

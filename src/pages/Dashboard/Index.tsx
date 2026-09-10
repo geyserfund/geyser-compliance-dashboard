@@ -7,7 +7,7 @@ import {
   ProjectFieldsFragment,
   OrderByDirection, 
   ProjectsOrderByField,
-  ProjectStatus
+  ProjectsGetWhereInputStatus
   // No PageInfo types needed
 } from "@/types/generated/graphql";
 import ProjectsTable from "@/components/Dashboard/ProjectsTable";
@@ -38,11 +38,11 @@ const DashboardPage = () => {
     variables: {
       input: {
         where: { statuses: [
-          ProjectStatus.Active,
-          ProjectStatus.Inactive,
-          ProjectStatus.PreLaunch,
-          ProjectStatus.Closed,
-          ProjectStatus.InReview,
+          ProjectsGetWhereInputStatus.Active,
+          ProjectsGetWhereInputStatus.Inactive,
+          ProjectsGetWhereInputStatus.PreLaunch,
+          ProjectsGetWhereInputStatus.Closed,
+          ProjectsGetWhereInputStatus.InReview,
         ]},
         orderBy: [{ field: ProjectsOrderByField.CreatedAt, direction: OrderByDirection.Desc }],
         pagination: { take: ITEMS_PER_PAGE }

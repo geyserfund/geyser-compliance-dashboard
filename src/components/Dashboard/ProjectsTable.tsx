@@ -20,7 +20,8 @@ import {
   ProjectReviewStatusInput,
   ProjectReviewStatus,
   RejectionReason,
-  ProjectFundingStrategy
+  ProjectFundingStrategy,
+  ProjectStatus,
 } from "@/types/generated/graphql";
 import ProjectReviewModal from "./ProjectReviewModal";
 import {
@@ -29,7 +30,6 @@ import {
 } from "@/components/Dashboard/StatusBadge";
 import { ExternalLink, Star, Copy, FileText, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import ProjectFeedbackSuggestionModal from "./ProjectFeedbackSuggestionModal";
 
 const LOCAL_STORAGE_WATCHLIST_KEY = "dashboardWatchlist";
 const LOCAL_STORAGE_REVIEWED_KEY = "dashboardReviewed";
@@ -125,16 +125,6 @@ const formatFundingStrategy = (
   }
 };
 
-const formatLaunchStrategy = (strategy: string | null | undefined): string => {
-  if (!strategy) return "-";
-
-  return strategy
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
 const getProjectUrl = (projectName: string | null | undefined): string => {
   return projectName ? `https://geyser.fund/project/${projectName}` : '#'; 
 };
@@ -142,9 +132,6 @@ const getProjectUrl = (projectName: string | null | undefined): string => {
 interface ProjectsTableProps {
   projects: ProjectFieldsFragment[];
   onRenderedCountChange?: (count: number) => void;
-  showLaunchPlan?: boolean;
-  showSuggestedFeedback?: boolean;
-  showWaveFeeAction?: boolean;
   showReviewAction?: boolean;
   sortableStatus?: boolean;
   sortableCreatedAt?: boolean;
@@ -160,9 +147,6 @@ interface ModalState {
   project: ProjectFieldsFragment | null;
 }
 
-const isEligibleProjectFeedbackStrategy = (launchStrategy: string | null | undefined): boolean =>
-  launchStrategy === "GROWTH_LAUNCH" || launchStrategy === "PRO_LAUNCH";
-
 type SortDirection = "asc" | "desc";
 
 const ProjectsTableBase = ({ 
@@ -170,9 +154,6 @@ const ProjectsTableBase = ({
   onRenderedCountChange, 
   disableReviewedFilter = false,
   showReviewStatus = false,
-  showLaunchPlan = false,
-  showSuggestedFeedback = false,
-  showWaveFeeAction = false,
   showReviewAction = true,
   sortableStatus = false,
   sortableCreatedAt = false,
@@ -183,18 +164,13 @@ const ProjectsTableBase = ({
     isOpen: false, 
     project: null
   });
-  const [feedbackModalState, setFeedbackModalState] = useState<ModalState>({
-    isOpen: false,
-    project: null,
-  });
   // Local state to track the current watchlist IDs
   const [watchlist, setWatchlist] = useState<string[]>([]); 
   // New state for reviewed projects
   const [reviewedProjects, setReviewedProjects] = useState<string[]>([]); 
-  const [waveFeeProjectIds, setWaveFeeProjectIds] = useState<string[]>([]);
   const [statusSortDirection, setStatusSortDirection] = useState<SortDirection>("asc");
   const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>("desc");
-  const showActionColumn = showWaveFeeAction || showReviewAction;
+  const showActionColumn = showReviewAction;
 
   // Load watchlist and reviewed projects from localStorage on mount
   useEffect(() => {
@@ -257,20 +233,11 @@ const ProjectsTableBase = ({
       project
     });
   };
-
-  const handleViewFeedback = (project: ProjectFieldsFragment) => {
-    setFeedbackModalState({
-      isOpen: true,
-      project,
-    });
-  };
-
   const handleReviewSubmit = async (
     projectId: string,
     reviewStatus: ProjectReviewStatusInput,
     rejectionReasons?: RejectionReason[],
-    reviewNotes?: string,
-    waveFee?: boolean
+    reviewNotes?: string
   ) => {
     try {
       const result = await reviewSubmitMutate({ 
@@ -280,7 +247,6 @@ const ProjectsTableBase = ({
             status: reviewStatus,
             rejectionReasons: rejectionReasons && rejectionReasons.length > 0 ? rejectionReasons : undefined,
             reviewNotes: reviewNotes,
-            waveFee,
           } 
         } 
       });
@@ -298,36 +264,6 @@ const ProjectsTableBase = ({
       console.error("Failed to submit review:", error);
       toast({
         title: "Error submitting review",
-        description: error instanceof Error ? error.message : "An unknown error occurred.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleWaveFee = async (projectId: string) => {
-    try {
-      await reviewSubmitMutate({
-        variables: {
-          input: {
-            projectId,
-            status: ProjectReviewStatusInput.Accepted,
-            waveFee: true,
-          },
-        },
-      });
-
-      setWaveFeeProjectIds((current) =>
-        current.includes(projectId) ? current : [...current, projectId]
-      );
-
-      toast({
-        title: "Launch fee waived",
-        description: `Project ${projectId} was marked as having its launch fee waived.`,
-      });
-    } catch (error) {
-      console.error("Failed to wave fee:", error);
-      toast({
-        title: "Error waiving launch fee",
         description: error instanceof Error ? error.message : "An unknown error occurred.",
         variant: "destructive",
       });
@@ -365,11 +301,11 @@ const ProjectsTableBase = ({
     }
 
     switch (project.status) {
-      case "IN_REVIEW":
+      case ProjectStatus.InReview:
         return 0;
-      case "ACCEPTED":
+      case ProjectStatus.Accepted:
         return 1;
-      case "REJECTED":
+      case ProjectStatus.Closed:
         return 2;
       default:
         return 3;
@@ -462,8 +398,7 @@ const ProjectsTableBase = ({
     e.stopPropagation();
   };
 
-  const emptyStateColspan =
-    7 + (showLaunchPlan ? 1 : 0) + (showSuggestedFeedback ? 1 : 0) + (showActionColumn ? 1 : 0);
+  const emptyStateColspan = 7 + (showActionColumn ? 1 : 0);
 
   return (
     <>
@@ -492,9 +427,6 @@ const ProjectsTableBase = ({
                 )}
               </TableHead>
               <TableHead className="w-[150px]">Funding</TableHead>
-              {showLaunchPlan ? (
-                <TableHead className="w-[160px]">Launch Plan</TableHead>
-              ) : null}
               <TableHead className="w-[150px]">
                 {sortableCreatedAt ? (
                   <Button
@@ -519,11 +451,8 @@ const ProjectsTableBase = ({
               <TableHead className="w-[80px]">Copy Email</TableHead>
               {showActionColumn ? (
                 <TableHead className="w-[120px]">
-                  {showWaveFeeAction ? "Wave Fee" : "Submit Review"}
+                  Submit Review
                 </TableHead>
-              ) : null}
-              {showSuggestedFeedback ? (
-                <TableHead className="w-[180px]">Suggested Feedback</TableHead>
               ) : null}
             </TableRow>
           </TableHeader>
@@ -542,10 +471,6 @@ const ProjectsTableBase = ({
                 const isWatchlisted = watchlist.includes(project.id);
                 const latestReview = getLatestReview(project);
                 const submitReviewState = isSubmitReviewDisabled(project);
-                const isWaveFeeApplied = project.paidLaunch || waveFeeProjectIds.includes(project.id);
-                const feedbackSuggestion = project.feedbackSuggestion;
-                const feedbackStatus = feedbackSuggestion?.status;
-                const eligibleForFeedback = isEligibleProjectFeedbackStrategy(project.launchStrategy);
 
                 return (
                   <TableRow 
@@ -564,9 +489,6 @@ const ProjectsTableBase = ({
                       }
                     </TableCell>
                     <TableCell>{formatFundingStrategy(project.fundingStrategy)}</TableCell>
-                    {showLaunchPlan ? (
-                      <TableCell>{formatLaunchStrategy(project.launchStrategy)}</TableCell>
-                    ) : null}
                     <TableCell>{formatDate(project.createdAt)}</TableCell>
                     <TableCell>
                       <Button asChild variant="ghost" size="icon">
@@ -610,20 +532,7 @@ const ProjectsTableBase = ({
                     </TableCell>
                     {showActionColumn ? (
                       <TableCell>
-                        {showWaveFeeAction ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              handleButtonClick(e);
-                              void handleWaveFee(project.id);
-                            }}
-                            disabled={isWaveFeeApplied || reviewSubmitLoading}
-                            aria-label="Wave launch fee for project"
-                          >
-                            {isWaveFeeApplied ? "Fee Paid" : "Wave Fee"}
-                          </Button>
-                        ) : !showReviewAction ? null : submitReviewState.disabled ? (
+                        {submitReviewState.disabled ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span onClick={handleButtonClick}>
@@ -660,28 +569,6 @@ const ProjectsTableBase = ({
                         )}
                       </TableCell>
                     ) : null}
-                    {showSuggestedFeedback ? (
-                      <TableCell>
-                        {!eligibleForFeedback ? (
-                          "-"
-                        ) : feedbackStatus === "READY" ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              handleButtonClick(e);
-                              handleViewFeedback(project);
-                            }}
-                          >
-                            View feedback
-                          </Button>
-                        ) : feedbackStatus === "FAILED" ? (
-                          "Unavailable"
-                        ) : (
-                          "Generating..."
-                        )}
-                      </TableCell>
-                    ) : null}
                   </TableRow>
                 );
               })
@@ -699,13 +586,6 @@ const ProjectsTableBase = ({
         project={modalState.project ?? undefined}
         onSubmit={handleReviewSubmit}
         isLoading={reviewSubmitLoading}
-      />
-      <ProjectFeedbackSuggestionModal
-        isOpen={feedbackModalState.isOpen}
-        onOpenChange={(open) =>
-          setFeedbackModalState({ isOpen: open, project: open ? feedbackModalState.project : null })
-        }
-        project={feedbackModalState.project ?? undefined}
       />
     </>
   );

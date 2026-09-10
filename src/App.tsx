@@ -16,7 +16,6 @@ import DashboardLayout from "./components/Dashboard/Layout";
 import Watchlist from "./pages/Dashboard/Watchlist";
 import Search from "./pages/Dashboard/Search";
 import RecentProjectsPage from "./pages/Dashboard/Recent";
-import ProjectsWithFeedbackPage from "./pages/Dashboard/ProjectsWithFeedback";
 import InReviewPage from "./pages/Dashboard/InReview";
 import AcceptedProjectsPage from "./pages/Dashboard/Accepted";
 import { ProjectDetail } from "./pages/Dashboard/ProjectDetail";
@@ -56,7 +55,6 @@ const AppRoutes = () => {
         <Route path="in-review" element={<InReviewPage />} />
         <Route path="accepted" element={<AcceptedProjectsPage />} />
         <Route path="recent" element={<RecentProjectsPage />} />
-        <Route path="projects-with-feedback" element={<ProjectsWithFeedbackPage />} />
         <Route path="watchlist" element={<Watchlist />} />
         <Route path="search" element={<Search />} />
         <Route path="payments" element={<PaymentsPage />} />

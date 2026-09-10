@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ProjectReviewStatus, ProjectReviewStatusInput } from "@/types/generated/graphql"
 import type {
   ProjectFieldsFragment,
-  ProjectReviewStatus,
-  ProjectReviewStatusInput,
 } from "@/types/generated/graphql"
 
 interface AiReviewSuggestionPanelProps {
@@ -48,9 +47,9 @@ const decisionLabel = (decision: ProjectReviewStatus | null | undefined) => {
 }
 
 const reviewStatusInputMap: Partial<Record<ProjectReviewStatus, ProjectReviewStatusInput>> = {
-  ACCEPTED: "ACCEPTED",
-  REJECTED: "REJECTED",
-  REVISIONS_REQUESTED: "REVISIONS_REQUESTED",
+  [ProjectReviewStatus.Accepted]: ProjectReviewStatusInput.Accepted,
+  [ProjectReviewStatus.Rejected]: ProjectReviewStatusInput.Rejected,
+  [ProjectReviewStatus.RevisionsRequested]: ProjectReviewStatusInput.RevisionsRequested,
 }
 
 const getLatestReview = (project: ProjectFieldsFragment) => {
