@@ -52,6 +52,12 @@ export const GET_PROJECT = gql`
   query ProjectGet($where: UniqueProjectQueryInput!) {
     projectGet(where: $where) {
       ...ProjectFields
+      location {
+        country {
+          code
+          name
+        }
+      }
     }
   }
 `;

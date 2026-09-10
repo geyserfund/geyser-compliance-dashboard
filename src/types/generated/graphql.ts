@@ -15378,7 +15378,19 @@ export type ProjectGetQueryVariables = Exact<{
 
 export type ProjectGetQuery = {
   __typename?: "Query";
-  projectGet?: ({ __typename?: "Project" } & ProjectFieldsFragment) | null;
+  projectGet?:
+    | ({
+        __typename?: "Project";
+        location?: {
+          __typename?: "Location";
+          country?: {
+            __typename?: "Country";
+            code: string;
+            name: string;
+          } | null;
+        } | null;
+      } & ProjectFieldsFragment)
+    | null;
 };
 
 export type ProjectsGetQueryVariables = Exact<{
@@ -15651,6 +15663,12 @@ export const ProjectGetDocument = gql`
   query ProjectGet($where: UniqueProjectQueryInput!) {
     projectGet(where: $where) {
       ...ProjectFields
+      location {
+        country {
+          code
+          name
+        }
+      }
     }
   }
   ${ProjectFieldsFragmentDoc}

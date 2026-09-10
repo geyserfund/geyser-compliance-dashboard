@@ -194,6 +194,13 @@ export const ProjectDetail: React.FC = () => {
             </div>
 
             <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>Country:</span>
+                <span className="text-foreground">
+                  {project.location?.country?.name || project.location?.country?.code || "Unknown"}
+                </span>
+              </div>
+
               {project.name ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <span>Project Name:</span>
